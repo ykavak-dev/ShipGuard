@@ -53,6 +53,7 @@ const IGNORE_PATTERNS = [
     '**/dist/**',
     '**/build/**',
     '**/.git/**',
+    '**/demo-examples/**',
 ];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const CONCURRENCY_LIMIT = 50; // Parallel file processing limit

@@ -7,7 +7,7 @@ async function reviewWithAI(scanResults, options = {}) {
         throw new Error('OPENAI_API_KEY not provided');
     }
     const baseUrl = options.baseUrl || 'https://api.openai.com/v1';
-    const model = options.model || 'gpt-4o-mini';
+    const model = options.model || 'gpt-5-mini';
     const systemPrompt = `You are a security review assistant. Analyze the provided scan results and respond ONLY with a JSON object in this exact format:
 {
   "prioritizedRisks": ["risk 1", "risk 2", "risk 3"],
