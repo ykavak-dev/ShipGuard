@@ -1,0 +1,59 @@
+██╗  ██╗██╗██╗      ██████╗  ██████╗ ██╗   ██╗ █████╗ ██████╗ ██████╗ ██╗ █████╗ ███╗   ██╗
+██║ ██╔╝██║██║     ██╔═══██╗██╔════╝ ██║   ██║██╔══██╗██╔══██╗██╔══██╗██║██╔══██╗████╗  ██║
+█████╔╝ ██║██║     ██║   ██║██║  ███╗██║   ██║███████║██████╔╝██║  ██║██║███████║██╔██╗ ██║
+██╔═██╗ ██║██║     ██║   ██║██║   ██║██║   ██║██╔══██║██╔══██╗██║  ██║██║██╔══██║██║╚██╗██║
+██║  ██╗██║███████╗╚██████╔╝╚██████╔╝╚██████╔╝██║  ██║██║  ██║██████╔╝██║██║  ██║██║ ╚████║
+╚═╝  ╚═╝╚═╝╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝
+                                 SHIPGUARD v1.0.0
+════════════════════════════════════════════════════════════════════════════
+
+┌─ EXECUTION METRICS ═══════════════════════════════════════════════════════
+  ⏱  Duration: 189ms
+  📄  Files scanned: 38
+  ⚙  Rules loaded: 4
+  ℹ  Started: 14:40:05
+  ✓  Completed: 14:40:05
+
+┌─ SECURITY SCORE ══════════════════════════════════════════════════════════
+  [████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 37/100
+  Status: 【CRITICAL】
+
+┌─ FINDINGS SUMMARY ════════════════════════════════════════════════════════
+    【  CRITICAL  】  03  Critical issues
+    【   MEDIUM   】  02  Medium severity
+
+  •  Total: 5 issues
+
+┌─ RECOMMENDATIONS ═════════════════════════════════════════════════════════
+  🔥  URGENT: Fix critical issues before deployment
+
+════════════════════════════════════════════════════════════════════════════
+
+┌─ DETAILED FINDINGS ═══════════════════════════════════════════════════════
+════════════════════════════════════════════════════════════════════════════
+
+  #001  【  CRITICAL  】
+  Potential hardcoded secret detected: Stripe Live Key
+  src/config/payments.ts:8 [hardcoded-secrets]
+
+  #002  【  CRITICAL  】
+  Potential hardcoded secret detected: Private Key
+  src/keys/private.pem [hardcoded-secrets]
+
+  #003  【  CRITICAL  】
+  Potential hardcoded secret detected: GitHub Personal Token
+  scripts/deploy.js:42 [hardcoded-secrets]
+
+  #004  【   MEDIUM   】
+  .env file exists but .env.example template is missing
+  .env [env-missing-example]
+
+  #005  【   MEDIUM   】
+  Dockerfile exposes PostgreSQL port 5432 - use internal Docker networking instead
+  Dockerfile:9 [docker-expose-postgres]
+
+════════════════════════════════════════════════════════════════════════════
+
+✗ Risk score 37 is below threshold 80
+
+error: process exited with code 1

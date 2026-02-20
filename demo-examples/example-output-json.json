@@ -1,0 +1,99 @@
+{
+  "timestamp": "2026-02-20T14:35:42.123Z",
+  "path": "/Users/demo/project",
+  "summary": {
+    "critical": 2,
+    "medium": 3,
+    "low": 5
+  },
+  "score": 52,
+  "threshold": 80,
+  "passed": false,
+  "findings": {
+    "critical": [
+      {
+        "filePath": "src/payments/config.ts",
+        "line": 24,
+        "severity": "critical",
+        "message": "Potential hardcoded secret detected: Stripe Live Key",
+        "ruleId": "hardcoded-secrets",
+        "category": "secrets"
+      },
+      {
+        "filePath": "src/aws/s3-client.ts",
+        "line": 15,
+        "severity": "critical",
+        "message": "Potential hardcoded secret detected: AWS Access Key ID",
+        "ruleId": "hardcoded-secrets",
+        "category": "secrets"
+      }
+    ],
+    "medium": [
+      {
+        "filePath": ".env",
+        "severity": "medium",
+        "message": ".env file exists but .env.example template is missing",
+        "ruleId": "env-missing-example",
+        "category": "configuration"
+      },
+      {
+        "filePath": "Dockerfile",
+        "line": 12,
+        "severity": "medium",
+        "message": "Dockerfile exposes PostgreSQL port 5432 - use internal Docker networking instead",
+        "ruleId": "docker-expose-postgres",
+        "category": "docker"
+      },
+      {
+        "filePath": "docker/Dockerfile.dev",
+        "line": 8,
+        "severity": "medium",
+        "message": "Dockerfile exposes PostgreSQL port 5432 - use internal Docker networking instead",
+        "ruleId": "docker-expose-postgres",
+        "category": "docker"
+      }
+    ],
+    "low": [
+      {
+        "filePath": "src/utils/logger.ts",
+        "line": 45,
+        "severity": "low",
+        "message": "Found 12 console.log statements (threshold: 5) - consider using a structured logger",
+        "ruleId": "console-log-excessive",
+        "category": "reliability"
+      },
+      {
+        "filePath": "src/api/handlers.ts",
+        "line": 112,
+        "severity": "low",
+        "message": "Found 8 console.log statements (threshold: 5) - consider using a structured logger",
+        "ruleId": "console-log-excessive",
+        "category": "reliability"
+      },
+      {
+        "filePath": "scripts/migrate.ts",
+        "line": 23,
+        "severity": "low",
+        "message": "Found 7 console.log statements (threshold: 5) - consider using a structured logger",
+        "ruleId": "console-log-excessive",
+        "category": "reliability"
+      },
+      {
+        "filePath": "tests/helpers.ts",
+        "line": 8,
+        "severity": "low",
+        "message": "Found 15 console.log statements (threshold: 5) - consider using a structured logger",
+        "ruleId": "console-log-excessive",
+        "category": "reliability"
+      },
+      {
+        "filePath": "src/middleware/debug.ts",
+        "line": 3,
+        "severity": "low",
+        "message": "Found 6 console.log statements (threshold: 5) - consider using a structured logger",
+        "ruleId": "console-log-excessive",
+        "category": "reliability"
+      }
+    ]
+  }
+}

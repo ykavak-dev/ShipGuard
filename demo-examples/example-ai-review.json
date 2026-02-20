@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-02-20T14:35:50.000Z",
+  "path": "/Users/demo/project",
+  "summary": {
+    "critical": 2,
+    "medium": 3,
+    "low": 5
+  },
+  "aiReview": {
+    "prioritizedRisks": [
+      "Hardcoded Stripe Live API key in src/payments/config.ts (line 24) - production credential exposed in source code",
+      "Hardcoded AWS Access Key in src/aws/s3-client.ts (line 15) - cloud account risk",
+      "Missing .env.example template - increases accidental secret commits by team members"
+    ],
+    "quickFixes": [
+      "Move Stripe secret to environment variables and rotate the leaked key",
+      "Use IAM role or environment-based AWS credentials instead of hardcoded keys",
+      "Add .env.example with placeholders and remove EXPOSE 5432 from Dockerfile"
+    ],
+    "shipReadiness": "Not ready for production: critical secret exposure must be resolved before release."
+  }
+}

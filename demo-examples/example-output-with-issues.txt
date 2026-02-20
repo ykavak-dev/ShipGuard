@@ -1,0 +1,80 @@
+██╗  ██╗██╗██╗      ██████╗  ██████╗ ██╗   ██╗ █████╗ ██████╗ ██████╗ ██╗ █████╗ ███╗   ██╗
+██║ ██╔╝██║██║     ██╔═══██╗██╔════╝ ██║   ██║██╔══██╗██╔══██╗██╔══██╗██║██╔══██╗████╗  ██║
+█████╔╝ ██║██║     ██║   ██║██║  ███╗██║   ██║███████║██████╔╝██║  ██║██║███████║██╔██╗ ██║
+██╔═██╗ ██║██║     ██║   ██║██║   ██║██║   ██║██╔══██║██╔══██╗██║  ██║██║██╔══██║██║╚██╗██║
+██║  ██╗██║███████╗╚██████╔╝╚██████╔╝╚██████╔╝██║  ██║██║  ██║██████╔╝██║██║  ██║██║ ╚████║
+╚═╝  ╚═╝╚═╝╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝
+                                 SHIPGUARD v1.0.0
+════════════════════════════════════════════════════════════════════════════
+
+┌─ EXECUTION METRICS ═══════════════════════════════════════════════════════
+  ⏱  Duration: 234ms
+  📄  Files scanned: 42
+  ⚠  Files skipped: 3
+  ⚙  Rules loaded: 4
+  ℹ  Started: 14:35:42
+  ✓  Completed: 14:35:42
+
+┌─ SECURITY SCORE ══════════════════════════════════════════════════════════
+  [████████████████████░░░░░░░░░░░░░░░░░░░░░░] 52/100
+  Status: 【HIGH RISK】
+
+┌─ FINDINGS SUMMARY ════════════════════════════════════════════════════════
+    【  CRITICAL  】  02  Critical issues
+    【   MEDIUM   】  03  Medium severity
+    【    LOW     】  05  Low priority
+
+  •  Total: 10 issues
+
+┌─ RECOMMENDATIONS ═════════════════════════════════════════════════════════
+  🔥  URGENT: Fix critical issues before deployment
+  ⚠  Schedule fixes for medium severity issues
+  ℹ  Address low priority issues when convenient
+
+════════════════════════════════════════════════════════════════════════════
+
+┌─ DETAILED FINDINGS ═══════════════════════════════════════════════════════
+════════════════════════════════════════════════════════════════════════════
+
+  #001  【  CRITICAL  】
+  Potential hardcoded secret detected: Stripe Live Key
+  src/payments/config.ts:24 [hardcoded-secrets]
+
+  #002  【  CRITICAL  】
+  Potential hardcoded secret detected: AWS Access Key ID
+  src/aws/s3-client.ts:15 [hardcoded-secrets]
+
+  #003  【   MEDIUM   】
+  .env file exists but .env.example template is missing
+  .env [env-missing-example]
+
+  #004  【   MEDIUM   】
+  Dockerfile exposes PostgreSQL port 5432 - use internal Docker networking instead
+  Dockerfile:12 [docker-expose-postgres]
+
+  #005  【   MEDIUM   】
+  Dockerfile exposes PostgreSQL port 5432 - use internal Docker networking instead
+  docker/Dockerfile.dev:8 [docker-expose-postgres]
+
+  #006  【    LOW     】
+  Found 12 console.log statements (threshold: 5) - consider using a structured logger
+  src/utils/logger.ts:45 [console-log-excessive]
+
+  #007  【    LOW     】
+  Found 8 console.log statements (threshold: 5) - consider using a structured logger
+  src/api/handlers.ts:112 [console-log-excessive]
+
+  #008  【    LOW     】
+  Found 7 console.log statements (threshold: 5) - consider using a structured logger
+  scripts/migrate.ts:23 [console-log-excessive]
+
+  #009  【    LOW     】
+  Found 15 console.log statements (threshold: 5) - consider using a structured logger
+  tests/helpers.ts:8 [console-log-excessive]
+
+  #010  【    LOW     】
+  Found 6 console.log statements (threshold: 5) - consider using a structured logger
+  src/middleware/debug.ts:3 [console-log-excessive]
+
+════════════════════════════════════════════════════════════════════════════
+
