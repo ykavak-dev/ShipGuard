@@ -1,204 +1,172 @@
 # ShipGuard
 
-**AI-powered security scanner that prevents demo-day disasters and production breaches.**
+Open-source CLI to detect demo/deploy risks in repositories and generate AI-guided fixes.
 
-> CLI Command: `kilo-guardian`
+> CLI command: `kilo-guardian`
+> Built with Kilo Code during DeveloperWeek 2026 Hackathon
 
----
+ShipGuard helps teams catch risky patterns before a live demo or production deploy. It combines static checks, risk scoring, AI-assisted review, and patch generation in one CLI.
 
-## The Problem
+## What You Get
 
-Every developer has been there: it's 2 AM before a demo, you deploy to production, and suddenly your API keys are exposed in the build logs. Or your Docker container is exposing PostgreSQL port 5432 to the world. Or you forgot to create a `.env.example` and your teammate spends hours debugging.
+- Fast repository scan with severity-based findings (`critical`, `medium`, `low`)
+- Risk score from 0-100 and threshold-based CI failure
+- AI review with top risks, quick fixes, and ship-readiness summary
+- Patch generation for fix suggestions plus safe auto-apply support
+- Human-readable terminal output and machine-readable JSON output
 
-Security reviews are often skipped until it's too late. ShipGuard automates this process—catching vulnerabilities in your codebase before they catch you.
+## Rule Coverage (Current)
 
-## Features
+| Rule ID | Severity | Detects |
+|---|---|---|
+| `hardcoded-secrets` | Critical | Stripe live keys, AWS access key IDs, GitHub tokens, private key blocks |
+| `env-missing-example` | Medium | `.env` exists but `.env.example` is missing |
+| `docker-expose-postgres` | Medium | `EXPOSE 5432` in Dockerfiles |
+| `console-log-excessive` | Low | More than 5 `console.log` calls in a file |
 
-- 🔍 **Static Security Scanning** - Detects exposed secrets, missing env templates, unsafe Docker configs, and excessive console.log statements
-- 🤖 **AI Security Review** - Get prioritized risk analysis and quick-fix recommendations from GPT-5-mini
-- 🛠️ **Auto-Fix Engine** - Generate unified diff patches; safely apply fixes like `.env.example` creation
-- 📊 **Risk Scoring** - 0-100 score with visual meter; fail CI builds below threshold
-- 📝 **Multiple Output Formats** - Human-readable tables or JSON for CI/CD pipelines
-- ⚡ **Fast & Parallel** - Scans large codebases in milliseconds with concurrent file processing
+## Quick Start
 
-## Installation
+### 1. Prerequisites
+
+- Node.js `>=16`
+- npm
+
+### 2. Install and build
 
 ```bash
-# Clone and install
-git clone https://github.com/your-org/shipguard.git
-cd shipguard
-npm install
-
-# Build
+git clone https://github.com/ykavak-dev/ShipGuard.git
+cd ShipGuard
+npm ci
 npm run build
-
-# Or run directly with ts-node
-npm run dev -- scan
 ```
 
-## Usage
-
-### Basic Scan
+### 3. Run a scan
 
 ```bash
-# Interactive scan with visual report
+npm start -- scan
+```
+
+## CLI Commands
+
+### `scan`
+
+Scans `.ts`, `.js`, `.env`, and `Dockerfile` files, then computes risk score.
+
+```bash
+# Default threshold is 80
 npm start -- scan
 
-# JSON output for CI pipelines
-npm start -- scan --json
+# Fail process if score is below threshold
+npm start -- scan --threshold 85
 
-# Fail if score below 80 (returns exit code 1)
-npm start -- scan --threshold 80
+# JSON output for pipelines
+npm start -- scan --json
 ```
 
-### AI Security Review
+### `ai-review`
+
+Runs a scan and asks OpenAI for prioritized risks and quick fixes.
 
 ```bash
-# Get AI-powered risk analysis
+export OPENAI_API_KEY="your_key"
 npm start -- ai-review
-
-# With JSON output
 npm start -- ai-review --json
 ```
 
-### Auto-Fix
+Notes:
+- `OPENAI_API_KEY` is required.
+- Default model is `gpt-5-mini`.
+
+### `fix`
+
+Generates unified diff patches from current findings.
 
 ```bash
-# Preview available fixes (unified diff format)
+# Print suggested patch
 npm start -- fix
 
-# Apply safe fixes only (.env.example, migration notes)
+# Apply only auto-applicable fixes
 npm start -- fix --apply
+
+# JSON output
+npm start -- fix --json
 ```
 
-### CLI Options
+## Auto-Fix Behavior
 
-| Command | Options | Description |
-|---------|---------|-------------|
-| `scan` | `--json`, `--threshold <n>` | Run security scan |
-| `ai-review` | `--json` | Get AI analysis |
-| `fix` | `--apply`, `--json` | Generate/apply fixes |
+Current fix engine behavior:
 
-## CI Integration
+- Auto-apply supported:
+  - Create `.env.example` from `.env` with placeholder values
+  - Create `LOGGING_MIGRATION_NOTE.md` for excessive `console.log` usage
+- Manual review required:
+  - Docker `EXPOSE 5432` removal patches are generated but not auto-applied
 
-Add Kilo Guardian to your GitHub Actions workflow:
+## CI/CD Integration
 
-```yaml
-# .github/workflows/security.yml
-name: Security Scan
+Repository includes a ready workflow at:
 
-on: [push, pull_request]
+- `.github/workflows/guardian.yml`
 
-jobs:
-  scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - run: npm ci
-      - run: npm run build
-      - run: npm start -- scan --threshold 80
+Minimal CI command:
+
+```bash
+npm ci
+npm run build
+npm start -- scan --threshold 80
 ```
 
-The workflow will fail if the risk score drops below 80, preventing vulnerable code from reaching production.
+If score is lower than threshold, command exits with code `1` and CI fails.
 
-## Example Output
+## Local Command Name
 
-### Human-Readable Scan
+To run as `kilo-guardian` directly on your machine:
 
-```
-██╗  ██╗██╗██╗      ██████╗  ██████╗ ██╗   ██╗ █████╗ ██████╗ ██████╗ ██╗ █████╗ ███╗   ██╗
-██║ ██╔╝██║██║     ██╔═══██╗██╔════╝ ██║   ██║██╔══██╗██╔══██╗██╔══██╗██║██╔══██╗████╗  ██║
-█████╔╝ ██║██║     ██║   ██║██║  ███╗██║   ██║███████║██████╔╝██║  ██║██║███████║██╔██╗ ██║
-                              SECURITY SCANNER v1.0.0
-════════════════════════════════════════════════════════════════════════════
-
-┌─ SECURITY SCORE ══════════════════════════════════════════════════════════
-  [████████████████████████░░░░░░░░░░░░░░░░] 75/100
-  Status: MODERATE
-
-┌─ FINDINGS SUMMARY ════════════════════════════════════════════════════════
-    CRITICAL   01  Critical issues
-    MEDIUM     02  Medium severity
-    LOW        03  Low priority
-
-  •  Total: 6 issues
-
-┌─ RECOMMENDATIONS ═════════════════════════════════════════════════════════
-  🔥  URGENT: Fix critical issues before deployment
-  ⚠  Schedule fixes for medium severity issues
+```bash
+npm link
+kilo-guardian scan
+kilo-guardian ai-review
+kilo-guardian fix
 ```
 
-### AI Review Output
+## Development
 
-```
-┌─ AI SECURITY ANALYSIS ════════════════════════════════════════════════════
-┌─ PRIORITY RISKS ══════════════════════════════════════════════════════════
-  🔴 1. Hardcoded API key in src/config.ts (line 24)
-  🟠 2. Docker exposing PostgreSQL port 5432
-  🟡 3. Missing rate limiting on auth endpoints
+```bash
+# Run TypeScript source directly
+npm run dev -- scan
 
-┌─ QUICK FIXES (< 30 MIN) ══════════════════════════════════════════════════
-  • 1. Move API key to environment variables
-  • 2. Remove EXPOSE 5432 from Dockerfile
-  • 3. Add express-rate-limit middleware
-
-┌─ SHIP READINESS ══════════════════════════════════════════════════════════
-  ⏸  Not ready for production—address critical risks first
+# Build dist output
+npm run build
 ```
 
-## Architecture
+## Project Structure
 
+```text
+.
+├── src
+│   ├── cli.ts
+│   ├── ai/aiReview.ts
+│   └── core
+│       ├── scanner.ts
+│       ├── scoring.ts
+│       ├── report.ts
+│       ├── fixEngine.ts
+│       └── rules
+│           ├── secrets.ts
+│           ├── env.ts
+│           ├── docker.ts
+│           └── reliability.ts
+├── demo-examples
+└── .github/workflows/guardian.yml
 ```
-kilo-guardian/
-├── src/
-│   ├── cli.ts              # Commander.js CLI interface
-│   ├── core/
-│   │   ├── scanner.ts      # Fast-glob file discovery + parallel scanning
-│   │   ├── rules/          # Pluggable security rules
-│   │   ├── fixEngine.ts    # Unified diff generator + auto-fix logic
-│   │   ├── scoring.ts      # Risk score calculation
-│   │   └── report.ts       # Terminal UI with chalk/ora
-│   └── ai/
-│       └── aiReview.ts     # OpenAI GPT-5-mini integration
-└── .github/workflows/      # CI/CD templates
-```
-
-### Scanning Pipeline
-
-1. **Discovery** - Fast-glob finds `.ts`, `.js`, `.env`, `Dockerfile` files
-2. **Parallel Reading** - Files read concurrently with 50-concurrency limit
-3. **Rule Engine** - Each file checked against applicable security rules
-4. **Scoring** - Findings weighted (critical=10, medium=5, low=1) → 0-100 score
-5. **Reporting** - Human-readable tables or JSON output
-
-## Built with Kilo Code
-
-This project was developed using [Kilo Code](https://kilocode.ai), an AI-powered development environment that accelerates the software development lifecycle through intelligent code generation, refactoring, and review.
-
-Kilo Code enabled rapid iteration on:
-- Core scanner architecture with TypeScript
-- CLI interface design with Commander.js
-- AI integration with OpenAI's GPT-5-mini
-- GitHub Actions CI/CD workflows
-- Professional terminal UX with chalk and ora
 
 ## Roadmap
 
-- [ ] Custom rule definition (YAML/JSON)
-- [ ] SARIF output format for GitHub Advanced Security
-- [ ] Pre-commit hook integration
-- [ ] VS Code extension
-- [ ] Language server protocol (LSP) support
-- [ ] Custom AI prompts for enterprise compliance
+- Custom rule packs (YAML/JSON)
+- SARIF output for GitHub Advanced Security
+- Pre-commit integration
+- Editor/IDE integrations
 
 ## License
 
-MIT © 2024 ShipGuard Contributors
-
----
-
-**Stop shipping secrets. Start shipping with confidence.**
+MIT
