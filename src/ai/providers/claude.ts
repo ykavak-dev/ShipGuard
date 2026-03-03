@@ -3,106 +3,41 @@ import type { ScanResult, Finding } from '../../core/scanner';
 import type { AIReviewResult } from '../aiReview';
 import { AIProvider } from './base';
 import type { AIFixSuggestion } from './base';
+import {
+  ANALYZE_FINDING_TOOL,
+  GENERATE_FIX_TOOL,
+  PRIORITIZE_RISKS_TOOL,
+  SUGGEST_RULES_TOOL,
+} from '../tools/schemas';
+import type {
+  AnalyzeFindingResult,
+  PrioritizeRisksResult,
+  SuggestRulesResult,
+} from '../tools/schemas';
+import {
+  SECURITY_ANALYST_PROMPT,
+  FIX_GENERATOR_PROMPT,
+  RISK_PRIORITIZER_PROMPT,
+} from '../prompts/system';
+import { getAnalyzeFindingExamples, getGenerateFixExamples } from '../prompts/fewshot';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Constants
 // ═════════════════════════════════════════════════════════════════════════════
 
 const DEFAULT_MODEL = 'claude-sonnet-4-5-20250929';
-const REVIEW_TEMPERATURE = 0.1;
+const ANALYSIS_TEMPERATURE = 0.1;
 const FIX_TEMPERATURE = 0.3;
-const REVIEW_MAX_TOKENS = 2048;
+const SUGGEST_TEMPERATURE = 0.5;
+const ANALYSIS_MAX_TOKENS = 2048;
 const FIX_MAX_TOKENS = 4096;
+const PRIORITIZE_MAX_TOKENS = 2048;
+const SUGGEST_MAX_TOKENS = 2048;
 const STREAM_MAX_TOKENS = 4096;
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1000;
 const REQUEST_TIMEOUT_MS = 30000;
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Tool Definitions
-// ═════════════════════════════════════════════════════════════════════════════
-
-const REVIEW_TOOL: Anthropic.Tool = {
-  name: 'security_review',
-  description: 'Return a structured security review of the scan results',
-  input_schema: {
-    type: 'object' as const,
-    properties: {
-      prioritizedRisks: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Top 3 critical risks, ordered by severity',
-      },
-      quickFixes: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Actionable fixes that take under 30 minutes each',
-      },
-      shipReadiness: {
-        type: 'string',
-        description: 'One sentence ship readiness summary',
-      },
-    },
-    required: ['prioritizedRisks', 'quickFixes', 'shipReadiness'],
-  },
-};
-
-const FIX_TOOL: Anthropic.Tool = {
-  name: 'generate_fix',
-  description: 'Return a structured fix suggestion for the finding',
-  input_schema: {
-    type: 'object' as const,
-    properties: {
-      filePath: {
-        type: 'string',
-        description: 'Path to the file to fix',
-      },
-      patch: {
-        type: 'string',
-        description: 'Unified diff patch to apply',
-      },
-      description: {
-        type: 'string',
-        description: 'Human-readable description of the fix',
-      },
-      confidence: {
-        type: 'number',
-        description: 'Confidence score from 0 to 1',
-      },
-      testSuggestion: {
-        type: 'string',
-        description: 'Suggested test to verify the fix',
-      },
-    },
-    required: ['filePath', 'patch', 'description', 'confidence', 'testSuggestion'],
-  },
-};
-
-// ═════════════════════════════════════════════════════════════════════════════
-// System Prompts
-// ═════════════════════════════════════════════════════════════════════════════
-
-const REVIEW_SYSTEM_PROMPT = `You are a senior application security engineer. Analyze repository scan results and provide actionable security guidance.
-
-Your expertise includes:
-- OWASP Top 10 vulnerabilities and mitigations
-- Secret management best practices
-- Container security hardening
-- Secure coding patterns
-
-Guidelines:
-- Prioritize findings by actual exploitability, not just severity labels
-- Reduce false positives: if a pattern looks like a test fixture or example, note it
-- Provide specific, actionable fixes — not generic advice
-- Consider the blast radius of each finding`;
-
-const FIX_SYSTEM_PROMPT = `You are a senior application security engineer generating code fixes.
-
-Guidelines:
-- Generate minimal, focused patches that fix only the specific issue
-- Preserve existing code style and conventions
-- Include a confidence score reflecting how certain you are the fix is correct
-- Suggest a test that would verify the fix works`;
+const ANALYZE_BATCH_SIZE = 10;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Claude Provider
@@ -125,50 +60,98 @@ export class ClaudeProvider extends AIProvider {
     this.model = model || DEFAULT_MODEL;
   }
 
-  async reviewFindings(scanResults: ScanResult): Promise<AIReviewResult> {
-    const userPrompt = `Analyze these repository security scan results. Prioritize the top 3 critical risks, provide quick fixes (under 30 minutes each), and give a one-sentence ship readiness summary.
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Public: reviewFindings (multi-call: analyze each + prioritize)
+  // ═══════════════════════════════════════════════════════════════════════════
 
-Scan Results:
-${JSON.stringify(scanResults, null, 2)}`;
+  async reviewFindings(scanResults: ScanResult): Promise<AIReviewResult> {
+    const allFindings = [
+      ...scanResults.critical,
+      ...scanResults.medium,
+      ...scanResults.low,
+    ];
+
+    if (allFindings.length === 0) {
+      return {
+        prioritizedRisks: [],
+        quickFixes: [],
+        shipReadiness: 'No findings detected. Safe to ship.',
+      };
+    }
+
+    // Step 1: Analyze each finding in batches
+    const analyses = await this.analyzeAllFindings(allFindings);
+
+    // Step 2: Prioritize based on analyses
+    const prioritization = await this.prioritizeFindings(allFindings, analyses);
+
+    // Map to AIReviewResult format
+    const topRankings = prioritization.rankings
+      .sort((a, b) => a.priority - b.priority)
+      .slice(0, 3);
+
+    return {
+      prioritizedRisks: topRankings.map((r) => {
+        const finding = allFindings[r.findingIndex];
+        const analysis = analyses[r.findingIndex];
+        return finding && analysis
+          ? `[CVSS ${analysis.cvss}] ${finding.message} — ${r.reasoning}`
+          : r.reasoning;
+      }),
+      quickFixes: topRankings.map((r) => {
+        const analysis = analyses[r.findingIndex];
+        return analysis?.remediation ?? 'Review finding manually';
+      }),
+      shipReadiness: prioritization.shipReadiness,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Public: analyzeFinding (single finding detailed analysis)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async analyzeFinding(
+    finding: Finding,
+    fileContent: string
+  ): Promise<AnalyzeFindingResult> {
+    const fewShot = getAnalyzeFindingExamples();
+
+    const userPrompt = `Analyze this finding:
+Finding: ${JSON.stringify(finding)}
+File Content:
+\`\`\`
+${fileContent}
+\`\`\``;
 
     const response = await this.callWithRetry(() =>
       this.client.messages.create({
         model: this.model,
-        max_tokens: REVIEW_MAX_TOKENS,
-        temperature: REVIEW_TEMPERATURE,
-        system: REVIEW_SYSTEM_PROMPT,
-        tools: [REVIEW_TOOL],
-        tool_choice: { type: 'tool', name: 'security_review' },
-        messages: [{ role: 'user', content: userPrompt }],
+        max_tokens: ANALYSIS_MAX_TOKENS,
+        temperature: ANALYSIS_TEMPERATURE,
+        system: SECURITY_ANALYST_PROMPT,
+        tools: [ANALYZE_FINDING_TOOL],
+        tool_choice: { type: 'tool', name: 'analyze_finding' },
+        messages: [
+          ...fewShot,
+          { role: 'user', content: userPrompt },
+        ],
       })
     );
 
-    this.trackTokens(
-      response.usage.input_tokens,
-      response.usage.output_tokens,
-      0
-    );
-
-    const toolBlock = response.content.find(
-      (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
-    );
-
-    if (!toolBlock) {
-      throw new Error('Claude did not return a tool_use response');
-    }
-
-    const result = toolBlock.input as Record<string, unknown>;
-    return {
-      prioritizedRisks: (result.prioritizedRisks as string[]) || [],
-      quickFixes: (result.quickFixes as string[]) || [],
-      shipReadiness: (result.shipReadiness as string) || 'Unable to determine ship readiness.',
-    };
+    this.trackTokens(response.usage.input_tokens, response.usage.output_tokens, 0);
+    return this.extractToolResult<AnalyzeFindingResult>(response, 'analyze_finding');
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Public: generateFix
+  // ═══════════════════════════════════════════════════════════════════════════
 
   async generateFix(
     finding: Finding,
     fileContent: string
   ): Promise<AIFixSuggestion> {
+    const fewShot = getGenerateFixExamples();
+
     const userPrompt = `Generate a fix for this security finding.
 
 Finding:
@@ -188,28 +171,19 @@ ${fileContent}
         model: this.model,
         max_tokens: FIX_MAX_TOKENS,
         temperature: FIX_TEMPERATURE,
-        system: FIX_SYSTEM_PROMPT,
-        tools: [FIX_TOOL],
+        system: FIX_GENERATOR_PROMPT,
+        tools: [GENERATE_FIX_TOOL],
         tool_choice: { type: 'tool', name: 'generate_fix' },
-        messages: [{ role: 'user', content: userPrompt }],
+        messages: [
+          ...fewShot,
+          { role: 'user', content: userPrompt },
+        ],
       })
     );
 
-    this.trackTokens(
-      response.usage.input_tokens,
-      response.usage.output_tokens,
-      0
-    );
+    this.trackTokens(response.usage.input_tokens, response.usage.output_tokens, 0);
 
-    const toolBlock = response.content.find(
-      (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
-    );
-
-    if (!toolBlock) {
-      throw new Error('Claude did not return a tool_use response for fix generation');
-    }
-
-    const result = toolBlock.input as Record<string, unknown>;
+    const result = this.extractToolResult<Record<string, unknown>>(response, 'generate_fix');
     return {
       filePath: (result.filePath as string) || finding.filePath,
       patch: (result.patch as string) || '',
@@ -218,6 +192,41 @@ ${fileContent}
       testSuggestion: (result.testSuggestion as string) || '',
     };
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Public: suggestRules
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async suggestRules(
+    findings: Finding[],
+    existingRules: string[]
+  ): Promise<SuggestRulesResult> {
+    const userPrompt = `Based on these scan findings and the existing rule set, suggest new rules that would improve scanner coverage.
+
+Findings:
+${JSON.stringify(findings, null, 2)}
+
+Existing Rules: ${JSON.stringify(existingRules)}`;
+
+    const response = await this.callWithRetry(() =>
+      this.client.messages.create({
+        model: this.model,
+        max_tokens: SUGGEST_MAX_TOKENS,
+        temperature: SUGGEST_TEMPERATURE,
+        system: SECURITY_ANALYST_PROMPT,
+        tools: [SUGGEST_RULES_TOOL],
+        tool_choice: { type: 'tool', name: 'suggest_rules' },
+        messages: [{ role: 'user', content: userPrompt }],
+      })
+    );
+
+    this.trackTokens(response.usage.input_tokens, response.usage.output_tokens, 0);
+    return this.extractToolResult<SuggestRulesResult>(response, 'suggest_rules');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Public: streamResponse
+  // ═══════════════════════════════════════════════════════════════════════════
 
   async streamResponse(
     prompt: string,
@@ -249,7 +258,124 @@ ${fileContent}
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Retry Logic
+  // Private: Batch analyze all findings
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  private async analyzeAllFindings(
+    findings: Finding[]
+  ): Promise<AnalyzeFindingResult[]> {
+    const results: AnalyzeFindingResult[] = [];
+
+    for (let i = 0; i < findings.length; i += ANALYZE_BATCH_SIZE) {
+      const batch = findings.slice(i, i + ANALYZE_BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map((finding) => this.analyzeSingleFinding(finding))
+      );
+      results.push(...batchResults);
+    }
+
+    return results;
+  }
+
+  private async analyzeSingleFinding(
+    finding: Finding
+  ): Promise<AnalyzeFindingResult> {
+    const userPrompt = `Analyze this finding:
+Finding: ${JSON.stringify(finding)}
+File Content: (not available for batch analysis)`;
+
+    const response = await this.callWithRetry(() =>
+      this.client.messages.create({
+        model: this.model,
+        max_tokens: ANALYSIS_MAX_TOKENS,
+        temperature: ANALYSIS_TEMPERATURE,
+        system: SECURITY_ANALYST_PROMPT,
+        tools: [ANALYZE_FINDING_TOOL],
+        tool_choice: { type: 'tool', name: 'analyze_finding' },
+        messages: [{ role: 'user', content: userPrompt }],
+      })
+    );
+
+    this.trackTokens(response.usage.input_tokens, response.usage.output_tokens, 0);
+    return this.extractToolResult<AnalyzeFindingResult>(response, 'analyze_finding');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Private: Prioritize findings
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  private async prioritizeFindings(
+    findings: Finding[],
+    analyses: AnalyzeFindingResult[]
+  ): Promise<PrioritizeRisksResult> {
+    const findingsWithAnalysis = findings.map((f, i) => ({
+      index: i,
+      finding: f,
+      analysis: analyses[i],
+    }));
+
+    const userPrompt = `Prioritize these analyzed findings by exploitability and business impact.
+
+Findings with analyses:
+${JSON.stringify(findingsWithAnalysis, null, 2)}`;
+
+    const response = await this.callWithRetry(() =>
+      this.client.messages.create({
+        model: this.model,
+        max_tokens: PRIORITIZE_MAX_TOKENS,
+        temperature: ANALYSIS_TEMPERATURE,
+        system: RISK_PRIORITIZER_PROMPT,
+        tools: [PRIORITIZE_RISKS_TOOL],
+        tool_choice: { type: 'tool', name: 'prioritize_risks' },
+        messages: [{ role: 'user', content: userPrompt }],
+      })
+    );
+
+    this.trackTokens(response.usage.input_tokens, response.usage.output_tokens, 0);
+    return this.extractToolResult<PrioritizeRisksResult>(response, 'prioritize_risks');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Private: Extract tool result with fallback
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  private extractToolResult<T>(
+    response: Anthropic.Message,
+    expectedTool: string
+  ): T {
+    const toolBlock = response.content.find(
+      (block): block is Anthropic.ToolUseBlock =>
+        block.type === 'tool_use' && block.name === expectedTool
+    );
+
+    if (toolBlock) {
+      return toolBlock.input as T;
+    }
+
+    // Fallback: try to parse text response as JSON
+    const textBlock = response.content.find(
+      (block): block is Anthropic.TextBlock => block.type === 'text'
+    );
+
+    if (textBlock?.text) {
+      try {
+        const jsonMatch =
+          textBlock.text.match(/```json\n?([\s\S]*?)\n?```/) ||
+          textBlock.text.match(/```\n?([\s\S]*?)\n?```/) ||
+          [null, textBlock.text];
+
+        const jsonContent = jsonMatch[1]?.trim() || textBlock.text.trim();
+        return JSON.parse(jsonContent) as T;
+      } catch {
+        // Fall through to error
+      }
+    }
+
+    throw new Error(`Claude did not return expected tool_use response for ${expectedTool}`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Private: Retry Logic
   // ═══════════════════════════════════════════════════════════════════════════
 
   private async callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
