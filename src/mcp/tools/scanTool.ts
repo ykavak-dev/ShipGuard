@@ -9,10 +9,10 @@ export function registerScanTool(server: McpServer, cache: ScanCache): void {
     'scan_repository',
     {
       description: 'Scan a directory for security vulnerabilities and calculate risk score',
-      inputSchema: {
+      inputSchema: z.object({
         path: z.string().optional().describe('Directory path to scan (defaults to SHIPGUARD_ROOT)'),
         threshold: z.number().default(80).describe('Minimum acceptable risk score'),
-      },
+      }),
     },
     async ({ path, threshold }) => {
       try {
