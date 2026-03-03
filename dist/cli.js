@@ -1,26 +1,106 @@
 #!/usr/bin/env node
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const { Command } = require("commander");
 const { scanProject } = require("./core/scanner");
 const { calculateScore } = require("./core/scoring");
 const { printReport, printDetailedReport, printAIReview, createSpinner, success, error, warning, info, divider, } = require("./core/report");
-const { reviewWithAI } = require("./ai/aiReview");
 const { generatePatch, generateFixes, applyFix } = require("./core/fixEngine");
+const { createProvider } = require("./ai/providerFactory");
+const { loadConfig, saveConfig, maskApiKey, } = require("./config");
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const program = new Command();
 program
-    .name("kilo-guardian")
-    .description("Kilo Guardian CLI tool")
-    .version("1.0.0");
-const DEFAULT_RISK_THRESHOLD = 80;
+    .name("shipguard")
+    .description("ShipGuard — Security scanning CLI with multi-provider AI support")
+    .version("2.0.0");
+function buildConfig(options) {
+    const overrides = {};
+    if (options.provider) {
+        const p = options.provider;
+        if (p === 'claude' || p === 'openai' || p === 'ollama') {
+            overrides.provider = p;
+        }
+        else {
+            console.error(error(`Unknown provider: ${p}. Use claude, openai, or ollama.`));
+            process.exit(1);
+        }
+    }
+    if (options.model)
+        overrides.model = options.model;
+    if (options.stream)
+        overrides.stream = options.stream;
+    if (options.verbose)
+        overrides.verbose = options.verbose;
+    if (options.threshold !== undefined)
+        overrides.threshold = options.threshold;
+    return loadConfig(overrides);
+}
+function printVerboseConfig(config) {
+    console.log(info('Active configuration:'));
+    console.log(`  Provider: ${config.provider}`);
+    console.log(`  Model: ${config.model || '(default)'}`);
+    console.log(`  API Key: ${maskApiKey(config.apiKey)}`);
+    console.log(`  Threshold: ${config.threshold}`);
+    console.log(`  Stream: ${config.stream}`);
+    console.log('');
+}
+function printTokenUsage(provider) {
+    const usage = provider.getTokenUsage();
+    if (usage.input > 0 || usage.output > 0) {
+        console.log(info(`Token usage: ${usage.input} input, ${usage.output} output`));
+    }
+}
+// ═════════════════════════════════════════════════════════════════════════════
+// Command: scan
+// ═════════════════════════════════════════════════════════════════════════════
 program
     .command("scan")
     .description("Scan the project for security issues")
     .option("--json", "Output raw JSON report only")
     .option("--threshold <number>", "Minimum acceptable risk score (fails if below)", parseInt)
+    .option("--provider <provider>", "AI provider (claude, openai, ollama)")
+    .option("--model <model-id>", "Model to use")
+    .option("--stream", "Enable streaming output")
+    .option("--verbose", "Show detailed config and token usage")
     .action(async (options) => {
+    const config = buildConfig(options);
     const rootPath = process.cwd();
-    const threshold = options.threshold ?? DEFAULT_RISK_THRESHOLD;
+    const threshold = config.threshold;
     try {
         const result = await scanProject(rootPath);
         const countResult = {
@@ -34,6 +114,7 @@ program
             const jsonOutput = {
                 timestamp: new Date().toISOString(),
                 path: rootPath,
+                provider: config.provider,
                 summary: countResult,
                 score,
                 threshold,
@@ -47,6 +128,8 @@ program
             console.log(JSON.stringify(jsonOutput, null, 2));
             process.exit(passed ? 0 : 1);
         }
+        if (config.verbose)
+            printVerboseConfig(config);
         const spinner = createSpinner("Scanning project files...");
         spinner.start();
         spinner.succeed(success("Scan completed"));
@@ -70,11 +153,19 @@ program
         process.exit(1);
     }
 });
+// ═════════════════════════════════════════════════════════════════════════════
+// Command: ai-review
+// ═════════════════════════════════════════════════════════════════════════════
 program
     .command("ai-review")
     .description("Scan project and get AI-powered security review")
     .option("--json", "Output raw JSON report only")
+    .option("--provider <provider>", "AI provider (claude, openai, ollama)")
+    .option("--model <model-id>", "Model to use")
+    .option("--stream", "Enable streaming output")
+    .option("--verbose", "Show detailed config and token usage")
     .action(async (options) => {
+    const config = buildConfig(options);
     const rootPath = process.cwd();
     try {
         const result = await scanProject(rootPath);
@@ -83,15 +174,35 @@ program
             medium: result.medium.length,
             low: result.low.length,
         };
-        const aiResult = await reviewWithAI(result);
-        if (options.json) {
-            const jsonOutput = {
-                timestamp: new Date().toISOString(),
-                path: rootPath,
-                summary: countResult,
-                aiReview: aiResult,
-            };
-            console.log(JSON.stringify(jsonOutput, null, 2));
+        if (config.verbose)
+            printVerboseConfig(config);
+        const provider = createProvider({
+            provider: config.provider,
+            apiKey: config.apiKey,
+            model: config.model,
+        });
+        let aiResult;
+        if (config.stream && !options.json) {
+            const scanSpinner = createSpinner("Scanning project files...");
+            scanSpinner.start();
+            scanSpinner.succeed(success(`Found ${countResult.critical} critical, ${countResult.medium} medium, ${countResult.low} low`));
+            const streamSpinner = createSpinner("Streaming AI security review...");
+            streamSpinner.start();
+            streamSpinner.succeed(success("Streaming response:"));
+            console.log(divider());
+            const prompt = `Analyze these security scan results and provide:
+1. Top 3 prioritized risks
+2. Quick fixes (under 30 minutes each)
+3. One-sentence ship readiness summary
+
+Scan Results:
+${JSON.stringify(result, null, 2)}`;
+            await provider.streamResponse(prompt, (chunk) => {
+                process.stdout.write(chunk);
+            });
+            console.log('\n' + divider());
+            if (config.verbose)
+                printTokenUsage(provider);
             return;
         }
         const scanSpinner = createSpinner("Scanning project files...");
@@ -99,9 +210,26 @@ program
         scanSpinner.succeed(success(`Found ${countResult.critical} critical, ${countResult.medium} medium, ${countResult.low} low`));
         const aiSpinner = createSpinner("Requesting AI security review...");
         aiSpinner.start();
+        aiResult = await provider.reviewFindings(result);
         aiSpinner.succeed(success("AI review completed"));
+        if (options.json) {
+            const jsonOutput = {
+                timestamp: new Date().toISOString(),
+                path: rootPath,
+                provider: config.provider,
+                model: config.model || '(default)',
+                summary: countResult,
+                aiReview: aiResult,
+            };
+            console.log(JSON.stringify(jsonOutput, null, 2));
+            if (config.verbose)
+                printTokenUsage(provider);
+            return;
+        }
         console.log(divider());
         printAIReview(aiResult.prioritizedRisks, aiResult.quickFixes, aiResult.shipReadiness);
+        if (config.verbose)
+            printTokenUsage(provider);
     }
     catch (err) {
         if (options.json) {
@@ -113,12 +241,18 @@ program
         process.exit(1);
     }
 });
+// ═════════════════════════════════════════════════════════════════════════════
+// Command: fix
+// ═════════════════════════════════════════════════════════════════════════════
 program
     .command("fix")
     .description("Generate fix patches for detected issues")
     .option("--apply", "Apply the generated patches to files")
     .option("--json", "Output raw JSON report only")
+    .option("--provider <provider>", "AI provider (claude, openai, ollama)")
+    .option("--model <model-id>", "Model to use")
     .action(async (options) => {
+    const config = buildConfig(options);
     const rootPath = process.cwd();
     try {
         const result = await scanProject(rootPath);
@@ -157,6 +291,7 @@ program
             const jsonOutput = {
                 timestamp: new Date().toISOString(),
                 path: rootPath,
+                provider: config.provider,
                 summary: {
                     critical: result.critical.length,
                     medium: result.medium.length,
@@ -173,6 +308,8 @@ program
             console.log(JSON.stringify(jsonOutput, null, 2));
             return;
         }
+        if (config.verbose)
+            printVerboseConfig(config);
         const scanSpinner = createSpinner("Scanning project for fixable issues...");
         scanSpinner.start();
         scanSpinner.succeed(success("Scan completed"));
@@ -215,7 +352,7 @@ program
             console.log('\n' + success('Fix process completed'));
         }
         else {
-            console.log('\n' + info('To apply these fixes, run: kilo-guardian fix --apply'));
+            console.log('\n' + info('To apply these fixes, run: shipguard fix --apply'));
         }
     }
     catch (err) {
@@ -228,6 +365,111 @@ program
         process.exit(1);
     }
 });
+// ═════════════════════════════════════════════════════════════════════════════
+// Command: config
+// ═════════════════════════════════════════════════════════════════════════════
+const configCmd = program
+    .command("config")
+    .description("Manage ShipGuard configuration");
+configCmd
+    .command("set <key> <value>")
+    .description("Set a configuration value")
+    .option("--global", "Save to global config (~/.shipguardrc.json)")
+    .action((key, value, opts) => {
+    const configMap = {
+        'provider': (v) => {
+            if (v !== 'claude' && v !== 'openai' && v !== 'ollama') {
+                console.error(error(`Invalid provider: ${v}. Use claude, openai, or ollama.`));
+                process.exit(1);
+            }
+            return { provider: v };
+        },
+        'model': (v) => ({ model: v }),
+        'api-key': (v) => ({ apiKey: v }),
+        'threshold': (v) => {
+            const n = parseInt(v, 10);
+            if (isNaN(n) || n < 0 || n > 100) {
+                console.error(error('Threshold must be a number between 0 and 100.'));
+                process.exit(1);
+            }
+            return { threshold: n };
+        },
+        'rules-dir': (v) => ({ rulesDir: v }),
+        'mcp-port': (v) => {
+            const n = parseInt(v, 10);
+            if (isNaN(n)) {
+                console.error(error('MCP port must be a number.'));
+                process.exit(1);
+            }
+            return { mcpPort: n };
+        },
+        'stream': (v) => ({ stream: v === 'true' }),
+        'verbose': (v) => ({ verbose: v === 'true' }),
+    };
+    const mapper = configMap[key];
+    if (!mapper) {
+        console.error(error(`Unknown config key: ${key}`));
+        console.log(info(`Valid keys: ${Object.keys(configMap).join(', ')}`));
+        process.exit(1);
+    }
+    const values = mapper(value);
+    saveConfig(values, opts.global);
+    console.log(success(`Set ${key} = ${key === 'api-key' ? maskApiKey(value) : value}`));
+});
+configCmd
+    .command("get <key>")
+    .description("Get a configuration value")
+    .action((key) => {
+    const config = loadConfig();
+    const keyMap = {
+        'provider': () => config.provider,
+        'model': () => config.model || '(not set)',
+        'api-key': () => maskApiKey(config.apiKey),
+        'threshold': () => String(config.threshold),
+        'rules-dir': () => config.rulesDir || '(not set)',
+        'mcp-port': () => String(config.mcpPort),
+        'stream': () => String(config.stream),
+        'verbose': () => String(config.verbose),
+    };
+    const getter = keyMap[key];
+    if (!getter) {
+        console.error(error(`Unknown config key: ${key}`));
+        console.log(info(`Valid keys: ${Object.keys(keyMap).join(', ')}`));
+        process.exit(1);
+    }
+    console.log(getter());
+});
+configCmd
+    .command("list")
+    .description("Show all active configuration")
+    .action(() => {
+    const config = loadConfig();
+    console.log(info('Active ShipGuard configuration:'));
+    console.log(`  provider:   ${config.provider}`);
+    console.log(`  model:      ${config.model || '(default)'}`);
+    console.log(`  api-key:    ${maskApiKey(config.apiKey)}`);
+    console.log(`  threshold:  ${config.threshold}`);
+    console.log(`  rules-dir:  ${config.rulesDir || '(not set)'}`);
+    console.log(`  mcp-port:   ${config.mcpPort}`);
+    console.log(`  stream:     ${config.stream}`);
+    console.log(`  verbose:    ${config.verbose}`);
+});
+configCmd
+    .command("reset")
+    .description("Delete local config file")
+    .action(() => {
+    const localPath = path.join(process.cwd(), '.shipguardrc.json');
+    try {
+        fs.unlinkSync(localPath);
+        console.log(success('Local config file deleted.'));
+    }
+    catch {
+        console.log(info('No local config file found.'));
+    }
+});
+// ═════════════════════════════════════════════════════════════════════════════
+// Main
+// ═════════════════════════════════════════════════════════════════════════════
 async function main() {
     try {
         await program.parseAsync(process.argv);
