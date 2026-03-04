@@ -35,7 +35,7 @@ ShipGuard helps teams catch security risks before production deploy. It combines
 
 ### 1. Prerequisites
 
-- Node.js `>=18`
+- Node.js `>=20`
 - npm
 
 ### 2. Install
