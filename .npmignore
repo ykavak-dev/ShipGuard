@@ -1,0 +1,16 @@
+src/
+tests/
+demo-examples/
+docs/
+.github/
+coverage/
+vitest.config.ts
+eslint.config.js
+.prettierrc
+.prettierignore
+tsconfig.json
+.shipguardrc.json
+.env*
+*.tgz
+.git/
+.DS_Store

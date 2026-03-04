@@ -1,12 +1,19 @@
 {
   "name": "shipguard",
   "version": "2.0.0",
-  "description": "Security scanning CLI with multi-provider AI support",
+  "description": "AI-powered security scanner with Claude API integration and MCP server support",
   "main": "dist/cli.js",
+  "types": "dist/cli.d.ts",
   "bin": {
     "shipguard": "dist/cli.js",
     "shipguard-mcp": "dist/mcp/server.js"
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node -- src/cli.ts",
@@ -22,10 +29,28 @@
     "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [
+    "security",
+    "scanner",
     "cli",
-    "tool"
+    "claude",
+    "anthropic",
+    "mcp",
+    "model-context-protocol",
+    "devsecops",
+    "sarif",
+    "ai",
+    "static-analysis",
+    "vulnerability"
   ],
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ykavak-dev/ShipGuard.git"
+  },
+  "homepage": "https://github.com/ykavak-dev/ShipGuard",
+  "bugs": {
+    "url": "https://github.com/ykavak-dev/ShipGuard/issues"
+  },
+  "author": "Yigit Kavak",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
@@ -52,6 +77,6 @@
     "vitest": "^4.0.18"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   }
 }
