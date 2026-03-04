@@ -35,10 +35,18 @@ ShipGuard helps teams catch security risks before production deploy. It combines
 
 ### 1. Prerequisites
 
-- Node.js `>=16`
+- Node.js `>=18`
 - npm
 
-### 2. Install and build
+### 2. Install
+
+**From npm:**
+
+```bash
+npm install shipguard-cli
+```
+
+**From source:**
 
 ```bash
 git clone https://github.com/ykavak-dev/ShipGuard.git
@@ -47,9 +55,17 @@ npm ci
 npm run build
 ```
 
-### 3. Run a scan
+### 3. Link globally (optional)
 
 ```bash
+npm link
+```
+
+### 4. Run a scan
+
+```bash
+shipguard scan
+# or without npm link:
 npm start -- scan
 ```
 
@@ -221,7 +237,7 @@ See `docs/mcp-setup.md` for Claude Desktop, Cursor, and VS Code setup.
 ```bash
 npm run dev -- scan      # Run from TypeScript source
 npm run build            # Compile to dist/
-npm test                 # Run all tests (153 tests)
+npm test                 # Run all 180 tests
 npm run test:watch       # Watch mode
 npm run test:coverage    # Coverage report (93%+ statements)
 ```
@@ -233,7 +249,6 @@ src/
   cli.ts                  # Commander.js CLI entry point
   config/index.ts         # Config system (rc files, env vars, CLI overrides)
   ai/
-    aiReview.ts           # Legacy OpenAI review
     providerFactory.ts    # Multi-provider factory (Claude, OpenAI, Ollama)
     providers/            # AIProvider implementations
     tools/schemas.ts      # Anthropic tool_use schemas

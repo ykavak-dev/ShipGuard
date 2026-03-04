@@ -1,25 +1,6 @@
 #!/usr/bin/env node
 
 const { Command } = require('commander') as typeof import('commander');
-const { scanProject } = require('./core/scanner') as typeof import('./core/scanner');
-const { calculateScore } = require('./core/scoring') as typeof import('./core/scoring');
-const {
-  printReport,
-  printDetailedReport,
-  printAIReview,
-  createSpinner,
-  success,
-  error,
-  warning,
-  info,
-  divider,
-  generateSarif,
-  generateHtmlReport,
-} = require('./core/report') as typeof import('./core/report');
-const { loadRules: loadAllRules } = require('./core/scanner') as typeof import('./core/scanner');
-const { generatePatch, generateFixes, applyFix } =
-  require('./core/fixEngine') as typeof import('./core/fixEngine');
-const { createProvider } = require('./ai/providerFactory') as typeof import('./ai/providerFactory');
 const { loadConfig, saveConfig, maskApiKey } = require('./config') as typeof import('./config');
 
 import type { FixSuggestion } from './core/fixEngine';
@@ -28,15 +9,14 @@ import type { ShipGuardConfig } from './config';
 
 import * as fs from 'fs';
 import * as path from 'path';
-const { resolveSafePath } =
-  require('./core/pathValidation') as typeof import('./core/pathValidation');
+import { VERSION } from './version';
 
 const program = new Command();
 
 program
   .name('shipguard')
   .description('ShipGuard — Security scanning CLI with multi-provider AI support')
-  .version('2.0.0');
+  .version(VERSION);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Helper: Build config from CLI options
@@ -54,6 +34,7 @@ interface CommonOptions {
 }
 
 function buildConfig(options: CommonOptions): ShipGuardConfig {
+  const { error } = require('./core/report') as typeof import('./core/report');
   const overrides: Partial<ShipGuardConfig> = {};
   if (options.provider) {
     const p = options.provider;
@@ -72,6 +53,7 @@ function buildConfig(options: CommonOptions): ShipGuardConfig {
 }
 
 function printVerboseConfig(config: ShipGuardConfig): void {
+  const { info } = require('./core/report') as typeof import('./core/report');
   console.log(info('Active configuration:'));
   console.log(`  Provider: ${config.provider}`);
   console.log(`  Model: ${config.model || '(default)'}`);
@@ -84,6 +66,7 @@ function printVerboseConfig(config: ShipGuardConfig): void {
 function printTokenUsage(provider: {
   getTokenUsage: () => { input: number; output: number; cost: number };
 }): void {
+  const { info } = require('./core/report') as typeof import('./core/report');
   const usage = provider.getTokenUsage();
   if (usage.input > 0 || usage.output > 0) {
     console.log(info(`Token usage: ${usage.input} input, ${usage.output} output`));
@@ -106,6 +89,21 @@ program
   .option('--stream', 'Enable streaming output')
   .option('--verbose', 'Show detailed config and token usage')
   .action(async (options: CommonOptions) => {
+    const { scanProject, loadRules: loadAllRules } =
+      require('./core/scanner') as typeof import('./core/scanner');
+    const { calculateScore } = require('./core/scoring') as typeof import('./core/scoring');
+    const {
+      printReport,
+      printDetailedReport,
+      createSpinner,
+      success,
+      error,
+      generateSarif,
+      generateHtmlReport,
+    } = require('./core/report') as typeof import('./core/report');
+    const { resolveSafePath } =
+      require('./core/pathValidation') as typeof import('./core/pathValidation');
+
     const config = buildConfig(options);
     const rootPath = process.cwd();
     const threshold = config.threshold;
@@ -114,6 +112,11 @@ program
     const format = options.format || (options.json ? 'json' : 'terminal');
 
     try {
+      // Start spinner before scan for terminal output
+      const isTerminal = format === 'terminal';
+      const spinner = isTerminal ? createSpinner('Scanning project files...') : null;
+      if (spinner) spinner.start();
+
       const result: ScannerScanResult = await scanProject(rootPath);
 
       const countResult = {
@@ -124,6 +127,8 @@ program
 
       const score = calculateScore(countResult);
       const passed = score >= threshold;
+
+      if (spinner) spinner.succeed(success('Scan completed'));
 
       // JSON output
       if (format === 'json') {
@@ -174,17 +179,15 @@ program
         }
 
         fs.writeFileSync(safeOutputPath, html, 'utf-8');
-        fs.chmodSync(safeOutputPath, 0o600);
+        if (process.platform !== 'win32') {
+          fs.chmodSync(safeOutputPath, 0o600);
+        }
         console.log(success(`HTML report written to ${outputPath}`));
         process.exit(passed ? 0 : 1);
       }
 
       // Terminal output (default)
       if (config.verbose) printVerboseConfig(config);
-
-      const spinner = createSpinner('Scanning project files...');
-      spinner.start();
-      spinner.succeed(success('Scan completed'));
 
       printReport(countResult, score, result.metadata);
 
@@ -220,6 +223,12 @@ program
   .option('--stream', 'Enable streaming output')
   .option('--verbose', 'Show detailed config and token usage')
   .action(async (options: CommonOptions) => {
+    const { scanProject } = require('./core/scanner') as typeof import('./core/scanner');
+    const { printAIReview, createSpinner, success, error, divider } =
+      require('./core/report') as typeof import('./core/report');
+    const { createProvider } =
+      require('./ai/providerFactory') as typeof import('./ai/providerFactory');
+
     const config = buildConfig(options);
     const rootPath = process.cwd();
 
@@ -262,7 +271,7 @@ program
 3. One-sentence ship readiness summary
 
 Scan Results:
-${JSON.stringify(result, null, 2)}`;
+${JSON.stringify(result)}`;
 
         await provider.streamResponse(prompt, (chunk) => {
           process.stdout.write(chunk);
@@ -329,6 +338,12 @@ program
   .option('--model <model-id>', 'Model to use')
   .action(
     async (options: { apply?: boolean; json?: boolean; provider?: string; model?: string }) => {
+      const { scanProject } = require('./core/scanner') as typeof import('./core/scanner');
+      const { generateFixes, applyFix } =
+        require('./core/fixEngine') as typeof import('./core/fixEngine');
+      const { createSpinner, success, error, warning, info, divider } =
+        require('./core/report') as typeof import('./core/report');
+
       const config = buildConfig(options);
       const rootPath = process.cwd();
 
@@ -350,16 +365,6 @@ program
           }
         }
 
-        const patch = await generatePatch(rootPath, {
-          critical: result.critical,
-          medium: result.medium,
-          low: result.low,
-          metadata: {
-            consoleLogCounts,
-            dockerFilesWithPostgres,
-          },
-        });
-
         const suggestions = await generateFixes(rootPath, {
           critical: result.critical,
           medium: result.medium,
@@ -369,6 +374,36 @@ program
             dockerFilesWithPostgres,
           },
         });
+
+        // Build patch from suggestions instead of calling generatePatch separately
+        let patch: string;
+        if (suggestions.length === 0) {
+          patch = '# No automated fixes available for current scan results\n';
+        } else {
+          const parts: string[] = [
+            '# ShipGuard Auto-Fix Patch',
+            `# Generated: ${new Date().toISOString()}`,
+            `# Total suggestions: ${suggestions.length}`,
+            '',
+          ];
+          for (let si = 0; si < suggestions.length; si++) {
+            const s = suggestions[si];
+            parts.push(
+              '# ═════════════════════════════════════════════════════════════════════════════'
+            );
+            parts.push(`# Fix ${si + 1}/${suggestions.length}: ${s.ruleId}`);
+            parts.push(`# File: ${s.filePath}`);
+            parts.push(`# Description: ${s.description}`);
+            parts.push(`# Auto-apply: ${s.canAutoApply ? 'YES' : 'NO - requires manual review'}`);
+            parts.push(
+              '# ═════════════════════════════════════════════════════════════════════════════'
+            );
+            parts.push('');
+            parts.push(s.patch);
+            parts.push('');
+          }
+          patch = parts.join('\n');
+        }
 
         if (options.json) {
           const jsonOutput = {
@@ -467,6 +502,8 @@ configCmd
   .description('Set a configuration value')
   .option('--global', 'Save to global config (~/.shipguardrc.json)')
   .action((key: string, value: string, opts: { global?: boolean }) => {
+    const { error, success, info } = require('./core/report') as typeof import('./core/report');
+
     const configMap: Record<string, (v: string) => Partial<ShipGuardConfig>> = {
       provider: (v) => {
         if (v !== 'claude' && v !== 'openai' && v !== 'ollama') {
@@ -519,6 +556,8 @@ configCmd
   .command('get <key>')
   .description('Get a configuration value')
   .action((key: string) => {
+    const { error, info } = require('./core/report') as typeof import('./core/report');
+
     const config = loadConfig();
     const keyMap: Record<string, () => string> = {
       provider: () => config.provider,
@@ -545,6 +584,8 @@ configCmd
   .command('list')
   .description('Show all active configuration')
   .action(() => {
+    const { info } = require('./core/report') as typeof import('./core/report');
+
     const config = loadConfig();
     console.log(info('Active ShipGuard configuration:'));
     console.log(`  provider:   ${config.provider}`);
@@ -561,6 +602,8 @@ configCmd
   .command('reset')
   .description('Delete local config file')
   .action(() => {
+    const { success, info } = require('./core/report') as typeof import('./core/report');
+
     const localPath = path.join(process.cwd(), '.shipguardrc.json');
     try {
       fs.unlinkSync(localPath);
@@ -574,10 +617,16 @@ configCmd
 // Main
 // ═════════════════════════════════════════════════════════════════════════════
 
+process.on('unhandledRejection', (reason) => {
+  console.error('[shipguard] Unhandled rejection:', reason);
+  process.exit(1);
+});
+
 async function main(): Promise<void> {
   try {
     await program.parseAsync(process.argv);
   } catch (err) {
+    const { error } = require('./core/report') as typeof import('./core/report');
     console.error(error('CLI error:'), err);
     process.exit(1);
   }

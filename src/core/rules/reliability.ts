@@ -13,8 +13,8 @@ const rule: Rule = {
     let count = 0;
     let firstLine: number | undefined;
 
-    for (let i = 0; i < context.lines.length; i++) {
-      if (context.lines[i].includes('console.log')) {
+    for (let i = 0; i < context.strippedLines.length; i++) {
+      if (context.strippedLines[i].includes('console.log')) {
         count++;
         if (firstLine === undefined) firstLine = i + 1;
       }

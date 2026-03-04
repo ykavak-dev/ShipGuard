@@ -18,7 +18,9 @@ export function registerExplainFindingPrompt(server: McpServer): void {
           content: {
             type: 'text' as const,
             text: [
-              `Explain the security finding from rule "${ruleId}" in file "${filePath}".`,
+              `Explain the security finding from the rule and file provided below.`,
+              `<user_provided_rule_id>${ruleId}</user_provided_rule_id>`,
+              `<user_provided_file_path>${filePath}</user_provided_file_path>`,
               '',
               '1. Use analyze_file to get details about this specific finding.',
               '2. Explain what the vulnerability is and why it matters.',

@@ -1,7 +1,7 @@
-import * as fs from 'fs';
+import { promises as fsAsync } from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import type { Rule, ScanContext, Finding } from './scanner';
+import type { Rule, ScanContext, Finding } from './types';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Types
@@ -71,18 +71,26 @@ function isValidPattern(p: unknown): p is YamlPattern {
 // ReDoS Safety Check
 // ═══════════════════════════════════════════════════════════════════════════
 
-function isSafeRegex(pattern: string, flags: string): boolean {
+const REDOS_TEST_STRINGS = [
+  'a'.repeat(25) + 'b', // repeated single char
+  'ab'.repeat(15) + 'c', // alternating chars
+  ' '.repeat(25) + 'x', // whitespace
+  '0'.repeat(25) + 'z', // digits
+  'a b '.repeat(8) + '!', // mixed with spaces
+];
+
+function compileAndTestRegex(pattern: string, flags: string): RegExp | null {
   try {
     const regex = new RegExp(pattern, flags);
-    // Test against a string that triggers backtracking in unsafe patterns
-    const testStr = 'a'.repeat(25) + 'b';
-    const start = performance.now();
-    regex.test(testStr);
-    const elapsed = performance.now() - start;
-    // If a simple test takes more than the threshold, pattern is likely unsafe
-    return elapsed < REDOS_TEST_THRESHOLD_MS;
+    for (const testStr of REDOS_TEST_STRINGS) {
+      const start = performance.now();
+      regex.test(testStr);
+      const elapsed = performance.now() - start;
+      if (elapsed >= REDOS_TEST_THRESHOLD_MS) return null;
+    }
+    return regex;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -99,23 +107,15 @@ function compileYamlRule(yamlRule: YamlRule): Rule | null {
       continue;
     }
 
-    try {
-      const flags = p.flags || '';
-      if (!isSafeRegex(p.regex, flags)) {
-        console.error(
-          `[shipguard] Skipping unsafe regex pattern in rule "${yamlRule.id}": potential ReDoS`
-        );
-        continue;
-      }
-      compiledPatterns.push({
-        regex: new RegExp(p.regex, flags),
-        message: p.message,
-      });
-    } catch (err) {
+    const flags = p.flags || '';
+    const regex = compileAndTestRegex(p.regex, flags);
+    if (!regex) {
       console.error(
-        `[shipguard] Invalid regex in rule "${yamlRule.id}": ${err instanceof Error ? err.message : String(err)}`
+        `[shipguard] Skipping unsafe or invalid regex pattern in rule "${yamlRule.id}"`
       );
+      continue;
     }
+    compiledPatterns.push({ regex, message: p.message });
   }
 
   if (compiledPatterns.length === 0) {
@@ -163,19 +163,19 @@ function compileYamlRule(yamlRule: YamlRule): Rule | null {
 // File Loading
 // ═══════════════════════════════════════════════════════════════════════════
 
-function loadYamlFile(filePath: string): Rule[] {
+async function loadYamlFile(filePath: string): Promise<Rule[]> {
   const rules: Rule[] = [];
 
   let content: string;
   try {
-    content = fs.readFileSync(filePath, 'utf-8');
+    content = await fsAsync.readFile(filePath, 'utf-8');
   } catch {
     return [];
   }
 
   let parsed: unknown;
   try {
-    parsed = yaml.load(content);
+    parsed = yaml.load(content, { schema: yaml.JSON_SCHEMA });
   } catch (err) {
     console.error(
       `[shipguard] Failed to parse YAML file ${filePath}: ${err instanceof Error ? err.message : String(err)}`
@@ -209,23 +209,26 @@ function loadYamlFile(filePath: string): Rule[] {
 // Public API
 // ═══════════════════════════════════════════════════════════════════════════
 
+/** Loads custom YAML security rules from `shipguard-rules.yml` or `SHIPGUARD_RULES_DIR`. */
 export async function loadYamlRules(projectRoot?: string): Promise<Rule[]> {
   const rules: Rule[] = [];
   const root = projectRoot || process.env.SHIPGUARD_ROOT || process.cwd();
 
   // 1. Default file in project root
   const defaultPath = path.join(root, DEFAULT_FILENAME);
-  rules.push(...loadYamlFile(defaultPath));
+  rules.push(...(await loadYamlFile(defaultPath)));
 
   // 2. Additional rules directory from env or config
   const rulesDir = process.env.SHIPGUARD_RULES_DIR;
   if (rulesDir) {
     try {
-      const files = fs
-        .readdirSync(rulesDir)
-        .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
-      for (const file of files) {
-        rules.push(...loadYamlFile(path.join(rulesDir, file)));
+      const dirEntries = await fsAsync.readdir(rulesDir);
+      const files = dirEntries.filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
+      const fileResults = await Promise.all(
+        files.map((file) => loadYamlFile(path.join(rulesDir, file)))
+      );
+      for (const fileRules of fileResults) {
+        rules.push(...fileRules);
       }
     } catch {
       // Rules directory doesn't exist, that's fine

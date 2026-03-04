@@ -54,6 +54,7 @@ module.exports = [
       'src/core/scanner.ts',
       'src/core/yamlRuleLoader.ts',
       'src/core/fixEngine.ts',
+      'src/ai/validation.ts',
       'src/ai/providers/**/*.ts',
     ],
     rules: {

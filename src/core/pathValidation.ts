@@ -27,21 +27,6 @@ export function resolveSafePath(basePath: string, filePath: string): string {
 }
 
 /**
- * Validates an absolute path is within the allowed base directory.
- * For use when the input is already an absolute path.
- */
-export function validateAbsolutePath(basePath: string, absolutePath: string): string {
-  const resolvedBase = path.resolve(basePath);
-  const resolvedTarget = path.resolve(absolutePath);
-
-  if (!resolvedTarget.startsWith(resolvedBase + path.sep) && resolvedTarget !== resolvedBase) {
-    throw new Error(`Path traversal detected: "${absolutePath}" is outside base directory`);
-  }
-
-  return resolvedTarget;
-}
-
-/**
  * Checks if a path is a symlink. Returns true if it is.
  */
 export function isSymlink(filePath: string): boolean {

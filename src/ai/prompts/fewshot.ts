@@ -6,8 +6,11 @@ type MessageParam = Anthropic.MessageParam;
 // analyze_finding examples
 // ═════════════════════════════════════════════════════════════════════════════
 
+let _analyzeFindingCache: MessageParam[] | null = null;
+
 export function getAnalyzeFindingExamples(): MessageParam[] {
-  return [
+  if (_analyzeFindingCache) return _analyzeFindingCache;
+  _analyzeFindingCache = [
     // Example 1: Hardcoded secret
     {
       role: 'user',
@@ -77,14 +80,18 @@ console.log("DB connection:", dbUrl);
       ],
     },
   ];
+  return _analyzeFindingCache;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
 // generate_fix examples
 // ═════════════════════════════════════════════════════════════════════════════
 
+let _generateFixCache: MessageParam[] | null = null;
+
 export function getGenerateFixExamples(): MessageParam[] {
-  return [
+  if (_generateFixCache) return _generateFixCache;
+  _generateFixCache = [
     // Example 1: Missing .env.example
     {
       role: 'user',
@@ -148,4 +155,5 @@ export const config = { apiKey: API_KEY };
       ],
     },
   ];
+  return _generateFixCache;
 }

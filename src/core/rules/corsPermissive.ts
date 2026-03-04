@@ -1,5 +1,4 @@
 import type { Rule, ScanContext, Finding } from '../scanner';
-import { isCommentLine, stripInlineComments } from '../commentUtils';
 
 const CORS_PATTERNS: { pattern: RegExp; message: string }[] = [
   {
@@ -19,12 +18,12 @@ const CORS_PATTERNS: { pattern: RegExp; message: string }[] = [
     message: 'cors() called without options allows all origins. Pass a configuration object.',
   },
   {
-    pattern: /origin\s*:\s*\(.*\)\s*=>\s*true/,
+    pattern: /origin\s*:\s*\([^)]*\)\s*=>\s*true/,
     message:
       'Dynamic CORS origin callback always returns true, accepting any origin. Validate origins explicitly.',
   },
   {
-    pattern: /origin\s*:.*callback\s*\(\s*null\s*,\s*true\s*\)/,
+    pattern: /origin\s*:[^,\n]*callback\s*\(\s*null\s*,\s*true\s*\)/,
     message:
       'CORS origin function calls callback(null, true), accepting any origin. Validate origins explicitly.',
   },
@@ -41,11 +40,8 @@ const rule: Rule = {
     const findings: Finding[] = [];
 
     for (let i = 0; i < context.lines.length; i++) {
-      const line = context.lines[i];
-      const trimmed = line.trim();
-
-      if (isCommentLine(trimmed)) continue;
-      const codeOnly = stripInlineComments(line);
+      const codeOnly = context.strippedLines[i];
+      if (!codeOnly.trim()) continue;
 
       for (const { pattern, message } of CORS_PATTERNS) {
         if (pattern.test(codeOnly)) {

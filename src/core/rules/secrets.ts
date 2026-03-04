@@ -1,41 +1,41 @@
 import type { Rule, ScanContext, Finding } from '../scanner';
 
 const SECRET_PATTERNS = [
-  { pattern: /sk_live_[a-zA-Z0-9]{24,}/g, name: 'Stripe Live Key' },
-  { pattern: /AKIA[0-9A-Z]{16}/g, name: 'AWS Access Key ID' },
-  { pattern: /ghp_[a-zA-Z0-9]{36}/g, name: 'GitHub Personal Token' },
-  { pattern: /-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/g, name: 'Private Key' },
+  { pattern: /sk_live_[a-zA-Z0-9]{24,}/, name: 'Stripe Live Key' },
+  { pattern: /AKIA[0-9A-Z]{16}/, name: 'AWS Access Key ID' },
+  { pattern: /ghp_[a-zA-Z0-9]{36}/, name: 'GitHub Personal Token' },
+  { pattern: /-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/, name: 'Private Key' },
   // Google Cloud API Key
-  { pattern: /AIza[0-9A-Za-z\-_]{35}/g, name: 'Google Cloud API Key' },
+  { pattern: /AIza[0-9A-Za-z\-_]{35}/, name: 'Google Cloud API Key' },
   // Slack Bot Token
-  { pattern: /xoxb-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24}/g, name: 'Slack Bot Token' },
+  { pattern: /xoxb-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24}/, name: 'Slack Bot Token' },
   // Slack User/Workspace Token
-  { pattern: /xox[ps]-[0-9]+-[a-zA-Z0-9-]+/g, name: 'Slack Token' },
+  { pattern: /xox[ps]-[0-9]+-[a-zA-Z0-9-]+/, name: 'Slack Token' },
   // SendGrid API Key
-  { pattern: /SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}/g, name: 'SendGrid API Key' },
+  { pattern: /SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}/, name: 'SendGrid API Key' },
   // Twilio API Key
-  { pattern: /SK[0-9a-fA-F]{32}/g, name: 'Twilio API Key' },
+  { pattern: /SK[0-9a-fA-F]{32}/, name: 'Twilio API Key' },
   // Generic high-entropy secret assignment
   {
-    pattern: /(?:password|passwd|secret|token|api_key|apikey|api-key)\s*[:=]\s*['"][^'"]{8,}/gi,
+    pattern: /(?:password|passwd|secret|token|api_key|apikey|api-key)\s*[:=]\s*['"][^'"]{8,}/i,
     name: 'Hardcoded credential',
   },
   // AWS Secret Access Key (40 chars base64)
   {
-    pattern: /(?:aws_secret_access_key|AWS_SECRET)\s*[:=]\s*['"]?[A-Za-z0-9/+=]{40}/gi,
+    pattern: /(?:aws_secret_access_key|AWS_SECRET)\s*[:=]\s*['"]?[A-Za-z0-9/+=]{40}/i,
     name: 'AWS Secret Access Key',
   },
   // MongoDB connection string with credentials
-  { pattern: /mongodb(\+srv)?:\/\/[^:]+:[^@]+@/g, name: 'MongoDB Connection String' },
+  { pattern: /mongodb(\+srv)?:\/\/[^:]+:[^@]+@/, name: 'MongoDB Connection String' },
   // JWT token (eyJ prefix)
-  { pattern: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, name: 'JWT Token' },
+  { pattern: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/, name: 'JWT Token' },
   // Azure connection string
   {
-    pattern: /DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[^;]+/g,
+    pattern: /DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[^;]+/,
     name: 'Azure Storage Connection String',
   },
   // Anthropic API Key
-  { pattern: /sk-ant-[a-zA-Z0-9_-]{20,}/g, name: 'Anthropic API Key' },
+  { pattern: /sk-ant-[a-zA-Z0-9_-]{20,}/, name: 'Anthropic API Key' },
 ];
 
 const rule: Rule = {
@@ -52,7 +52,6 @@ const rule: Rule = {
       const line = context.lines[i];
 
       for (const { pattern, name } of SECRET_PATTERNS) {
-        pattern.lastIndex = 0;
         if (pattern.test(line)) {
           findings.push({
             filePath: context.filePath,
@@ -62,6 +61,7 @@ const rule: Rule = {
             ruleId: 'hardcoded-secrets',
             category: 'secrets',
           });
+          break;
         }
       }
     }

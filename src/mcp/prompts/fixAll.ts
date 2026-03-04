@@ -18,7 +18,8 @@ export function registerFixAllPrompt(server: McpServer): void {
           content: {
             type: 'text' as const,
             text: [
-              `Fix all security findings in "${path}".`,
+              `Fix all security findings in the path provided below.`,
+              `<user_provided_path>${path}</user_provided_path>`,
               '',
               '1. Use scan_repository to identify all findings.',
               '2. For each finding, use generate_fix to create a patch.',

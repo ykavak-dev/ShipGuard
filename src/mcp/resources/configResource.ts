@@ -1,5 +1,6 @@
 import { loadConfig, maskApiKey } from '../../config';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { checkMcpAuth } from '../types';
 
 export function registerConfigResource(server: McpServer): void {
   server.registerResource(
@@ -10,6 +11,24 @@ export function registerConfigResource(server: McpServer): void {
       mimeType: 'application/json',
     },
     async (uri) => {
+      const parsedUrl = new URL(uri.href);
+      const token = parsedUrl.searchParams.get('token') ?? undefined;
+      const authError = checkMcpAuth(token);
+      // Strip token from response URI to avoid leaking in logs
+      parsedUrl.searchParams.delete('token');
+      const safeUri = parsedUrl.toString();
+      if (authError) {
+        return {
+          contents: [
+            {
+              uri: safeUri,
+              mimeType: 'application/json',
+              text: JSON.stringify({ error: authError }),
+            },
+          ],
+        };
+      }
+
       const config = loadConfig();
       const response = {
         ...config,
@@ -19,7 +38,7 @@ export function registerConfigResource(server: McpServer): void {
       return {
         contents: [
           {
-            uri: uri.href,
+            uri: safeUri,
             mimeType: 'application/json',
             text: JSON.stringify(response, null, 2),
           },

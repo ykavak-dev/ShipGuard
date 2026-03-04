@@ -143,7 +143,7 @@ describe('console-log-excessive rule', () => {
     expect(findings).toHaveLength(1);
     expect(findings[0].ruleId).toBe('console-log-excessive');
     expect(findings[0].severity).toBe('low');
-    expect(findings[0].message).toContain('8');
+    expect(findings[0].message).toContain('7');
     expect(findings[0].message).toContain('threshold');
   });
 

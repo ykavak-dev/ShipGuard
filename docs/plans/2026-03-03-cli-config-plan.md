@@ -18,10 +18,10 @@
 **Step 1: Update package metadata**
 
 Change these fields in `package.json`:
-- `"name": "kilo-guardian"` → `"name": "shipguard"`
+- `"name": "shipguard (formerly kilo-guardian)"` → `"name": "shipguard-cli"`
 - `"version": "1.0.0"` → `"version": "2.0.0"`
 - `"description": "A Node.js CLI tool"` → `"description": "Security scanning CLI with multi-provider AI support"`
-- `"bin"` section: replace `"kilo-guardian": "dist/cli.js"` with `"shipguard": "dist/cli.js"`
+- `"bin"` section: replace `"shipguard (formerly kilo-guardian)": "dist/cli.js"` with `"shipguard": "dist/cli.js"` (done)
 
 **Step 2: Build to verify**
 

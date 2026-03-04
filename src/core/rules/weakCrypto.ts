@@ -1,5 +1,4 @@
 import type { Rule, ScanContext, Finding } from '../scanner';
-import { isCommentLine, stripInlineComments } from '../commentUtils';
 
 const WEAK_HASH_PATTERN = /createHash\s*\(\s*['"](?:md5|sha1)['"]\s*\)/;
 const PSEUDO_RANDOM_PATTERN = /crypto\.pseudoRandomBytes/;
@@ -29,13 +28,12 @@ const rule: Rule = {
   applicableTo: ['.ts', '.js'],
   check(context: ScanContext): Finding[] {
     const findings: Finding[] = [];
+    // Lazily lowercased lines — only allocated when Math.random() is found
+    let lowerLines: string[] | null = null;
 
     for (let i = 0; i < context.lines.length; i++) {
-      const line = context.lines[i];
-      const trimmed = line.trim();
-
-      if (isCommentLine(trimmed)) continue;
-      const codeOnly = stripInlineComments(line);
+      const codeOnly = context.strippedLines[i];
+      if (!codeOnly || codeOnly.trimStart().startsWith('*')) continue;
 
       if (WEAK_HASH_PATTERN.test(codeOnly)) {
         findings.push({
@@ -60,14 +58,20 @@ const rule: Rule = {
       }
 
       if (MATH_RANDOM_PATTERN.test(codeOnly)) {
-        const surroundingLines = context.lines
-          .slice(Math.max(0, i - 3), Math.min(context.lines.length, i + 4))
-          .join(' ')
-          .toLowerCase();
-
-        const inSecurityContext = SECURITY_CONTEXT_KEYWORDS.some((kw) =>
-          surroundingLines.includes(kw)
-        );
+        if (!lowerLines) {
+          lowerLines = context.lines.map((l) => l.toLowerCase());
+        }
+        const start = Math.max(0, i - 3);
+        const end = Math.min(lowerLines.length, i + 4);
+        let inSecurityContext = false;
+        outer: for (let j = start; j < end; j++) {
+          for (const kw of SECURITY_CONTEXT_KEYWORDS) {
+            if (lowerLines[j].includes(kw)) {
+              inSecurityContext = true;
+              break outer;
+            }
+          }
+        }
 
         if (inSecurityContext) {
           findings.push({

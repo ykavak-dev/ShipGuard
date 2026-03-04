@@ -161,7 +161,7 @@ describe('generateEnvExampleFix', () => {
 // ── applyFix ───────────────────────────────────────────────────────────────
 
 describe('applyFix', () => {
-  it('throws for non-auto-applicable ruleIds', () => {
+  it('throws for non-auto-applicable ruleIds', async () => {
     const dir = makeTempDir();
     const fix: FixSuggestion = {
       ruleId: 'docker-expose-postgres',
@@ -171,7 +171,7 @@ describe('applyFix', () => {
       canAutoApply: false,
     };
 
-    expect(() => applyFix(dir, fix)).toThrow('cannot be auto-applied');
+    await expect(applyFix(dir, fix)).rejects.toThrow('cannot be auto-applied');
   });
 
   it('creates the .env.example file when applying env-missing-example fix', async () => {
@@ -181,7 +181,7 @@ describe('applyFix', () => {
     const fix = await generateEnvExampleFix(dir);
     expect(fix).not.toBeNull();
 
-    applyFix(dir, fix!);
+    await applyFix(dir, fix!);
 
     const created = fs.existsSync(path.join(dir, '.env.example'));
     expect(created).toBe(true);
@@ -195,7 +195,7 @@ describe('applyFix', () => {
     const loggingFix = await generateLoggingNoteFix(dir, [{ filePath: 'src/app.ts', count: 12 }]);
     expect(loggingFix).not.toBeNull();
 
-    applyFix(dir, loggingFix!);
+    await applyFix(dir, loggingFix!);
 
     const created = fs.existsSync(path.join(dir, 'LOGGING_MIGRATION_NOTE.md'));
     expect(created).toBe(true);

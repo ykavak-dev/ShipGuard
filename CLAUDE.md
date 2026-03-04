@@ -25,7 +25,7 @@ After `npm link`, the CLI is available as `shipguard`.
 ## Testing
 
 ```bash
-npm test                 # Run all 153 tests (vitest)
+npm test                 # Run all 180 tests (vitest)
 npm run test:watch       # Watch mode
 npm run test:coverage    # Coverage report (93%+ statements)
 npx vitest run tests/unit/rules.test.ts  # Run single test file

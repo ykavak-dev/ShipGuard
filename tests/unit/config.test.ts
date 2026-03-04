@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { loadConfig, maskApiKey, getApiKey, saveConfig } from '../../src/config/index';
+import { loadConfig, maskApiKey, getApiKey, saveConfig, clearConfigCache } from '../../src/config/index';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -20,6 +20,7 @@ describe('config', () => {
   const savedEnv: Record<string, string | undefined> = {};
 
   beforeEach(() => {
+    clearConfigCache();
     for (const key of envVarsToSave) {
       savedEnv[key] = process.env[key];
       delete process.env[key];
@@ -69,12 +70,12 @@ describe('config', () => {
       expect(maskApiKey('12345678')).toBe('***');
     });
 
-    it('masks long key: first 7 chars + "***" + last 3 chars', () => {
+    it('masks long key: first 4 chars + "***"', () => {
       const key = 'sk-ant-1234567890abcdef';
       const masked = maskApiKey(key);
-      expect(masked).toBe('sk-ant-' + '***' + 'def');
-      expect(masked.startsWith(key.substring(0, 7))).toBe(true);
-      expect(masked.endsWith(key.substring(key.length - 3))).toBe(true);
+      expect(masked).toBe('sk-a***');
+      expect(masked.startsWith(key.substring(0, 4))).toBe(true);
+      expect(masked).not.toContain(key.substring(key.length - 3));
     });
   });
 

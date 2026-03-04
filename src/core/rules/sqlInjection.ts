@@ -1,7 +1,18 @@
 import type { Rule, ScanContext, Finding } from '../scanner';
-import { isCommentLine, stripInlineComments } from '../commentUtils';
+import { isCommentLine } from '../commentUtils';
 
 const QUERY_METHODS = ['query', 'execute', 'raw', 'prepare', 'findRaw', 'executeRaw', 'all', 'get'];
+
+// Pre-compiled regex patterns for each method
+const TEMPLATE_PATTERNS = QUERY_METHODS.map((method) => ({
+  method,
+  pattern: new RegExp(`\\.${method}\\s*\\(\`[^\\)]*\\$\\{`),
+}));
+
+const CONCAT_PATTERNS = QUERY_METHODS.map((method) => ({
+  method,
+  pattern: new RegExp(`\\.${method}\\s*\\(\\s*['"][^'"]*['"]\\s*\\+`),
+}));
 
 const rule: Rule = {
   id: 'sql-injection',
@@ -14,17 +25,17 @@ const rule: Rule = {
     const findings: Finding[] = [];
 
     for (let i = 0; i < context.lines.length; i++) {
-      const line = context.lines[i];
-      const trimmed = line.trim();
+      const trimmed = context.lines[i].trim();
 
       // Skip comment lines
       if (isCommentLine(trimmed)) continue;
-      const codeOnly = stripInlineComments(line);
+      const codeOnly = context.strippedLines[i];
 
-      for (const method of QUERY_METHODS) {
-        // Template literal with interpolation: .query(`...${...}...`)
-        const templatePattern = new RegExp(`\\.${method}\\s*\\(\`[^\\)]*\\$\\{`);
-        if (templatePattern.test(codeOnly)) {
+      let matched = false;
+
+      // Check template literal patterns first
+      for (const { method, pattern } of TEMPLATE_PATTERNS) {
+        if (pattern.test(codeOnly)) {
           findings.push({
             filePath: context.filePath,
             line: i + 1,
@@ -33,12 +44,16 @@ const rule: Rule = {
             ruleId: 'sql-injection',
             category: 'injection',
           });
+          matched = true;
           break;
         }
+      }
 
-        // String concatenation: .query("SELECT" + variable) or .query('INSERT' +
-        const concatPattern = new RegExp(`\\.${method}\\s*\\(\\s*['"][^'"]*['"]\\s*\\+`);
-        if (concatPattern.test(codeOnly)) {
+      if (matched) continue;
+
+      // Check string concatenation patterns
+      for (const { method, pattern } of CONCAT_PATTERNS) {
+        if (pattern.test(codeOnly)) {
           findings.push({
             filePath: context.filePath,
             line: i + 1,

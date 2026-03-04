@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { updateScan } from '../../src/mcp/types';
 import type { ScanCache } from '../../src/mcp/types';
-import type { ScanResult } from '../../src/core/scanner';
+import type { ScanResult, Finding } from '../../src/core/scanner';
 import { registerAllTools } from '../../src/mcp/tools';
 import { registerAllResources } from '../../src/mcp/resources';
 import { registerAllPrompts } from '../../src/mcp/prompts';
@@ -35,7 +35,7 @@ function freshCache(): ScanCache {
 }
 
 function makeScanResult(critical = 0, medium = 0, low = 0, filesScanned = 5): ScanResult {
-  const mkFinding = (severity: 'critical' | 'medium' | 'low', n: number) =>
+  const mkFinding = (severity: 'critical' | 'medium' | 'low', n: number): Finding[] =>
     Array.from({ length: n }, (_, i) => ({
       ruleId: `rule-${severity}-${i}`,
       severity,

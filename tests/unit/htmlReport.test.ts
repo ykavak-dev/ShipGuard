@@ -100,4 +100,24 @@ describe('generateHtmlReport', () => {
     expect(html).toContain('&lt;script&gt;');
     expect(html).not.toContain('<script>alert');
   });
+
+  it('escapes </script> in JSON findings to prevent script injection', () => {
+    const maliciousFinding = makeFinding({
+      message: '</script><script>alert("xss")</script>',
+      filePath: 'src/app.ts',
+      severity: 'critical',
+    });
+
+    const html = generateHtmlReport(
+      makeScanResult([maliciousFinding]),
+      50,
+      80,
+      [makeRule({ id: 'test-rule', severity: 'critical' })]
+    );
+
+    // The raw </script> must NOT appear unescaped inside the script block
+    expect(html).not.toContain('</script><script>alert');
+    // The escaped version should be present
+    expect(html).toContain('\\u003c/script\\u003e');
+  });
 });

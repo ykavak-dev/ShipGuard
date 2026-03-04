@@ -1,5 +1,5 @@
 import type { Rule, ScanContext, Finding } from '../scanner';
-import { isCommentLine, stripInlineComments } from '../commentUtils';
+import { isCommentLine } from '../commentUtils';
 
 const XSS_PATTERNS: { pattern: RegExp; message: string }[] = [
   {
@@ -53,12 +53,11 @@ const rule: Rule = {
     const findings: Finding[] = [];
 
     for (let i = 0; i < context.lines.length; i++) {
-      const line = context.lines[i];
-      const trimmed = line.trim();
+      const trimmed = context.lines[i].trim();
 
       // Skip comment lines
       if (isCommentLine(trimmed)) continue;
-      const codeOnly = stripInlineComments(line);
+      const codeOnly = context.strippedLines[i];
 
       for (const { pattern, message } of XSS_PATTERNS) {
         if (pattern.test(codeOnly)) {

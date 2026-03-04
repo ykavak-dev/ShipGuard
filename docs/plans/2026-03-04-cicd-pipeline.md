@@ -262,12 +262,12 @@ git commit -m "chore: add lint, format, and prepublishOnly scripts"
 
 ---
 
-### Task 7: Deprecate guardian.yml
+### Task 7: Deprecate guardian.yml (removed)
 
 **Files:**
-- Modify: `.github/workflows/guardian.yml`
+- Modify: `.github/workflows/guardian.yml (removed)`
 
-**Step 1: Add deprecation notice to guardian.yml**
+**Step 1: Add deprecation notice to guardian.yml (removed)**
 
 Add a comment block at the very top of the file, before the `name:` field:
 
@@ -280,8 +280,8 @@ Add a comment block at the very top of the file, before the `name:` field:
 **Step 2: Commit**
 
 ```bash
-git add .github/workflows/guardian.yml
-git commit -m "chore: mark guardian.yml workflow as deprecated"
+git add .github/workflows/guardian.yml (removed)
+git commit -m "chore: mark guardian.yml (removed) workflow as deprecated"
 ```
 
 ---
@@ -653,7 +653,7 @@ git status
 | `.prettierignore` | Create | Prettier file exclusions |
 | `.github/workflows/ci.yml` | Create | 4-job CI pipeline |
 | `.github/workflows/release.yml` | Create | Tag-based release workflow |
-| `.github/workflows/guardian.yml` | Modify | Add deprecation notice |
+| `.github/workflows/guardian.yml (removed)` | Modify | Add deprecation notice |
 | `package.json` | Modify | Add lint/format/prepublishOnly scripts + dev deps |
 | `src/core/scanner.ts` | Modify | Add tests/fixtures to IGNORE_PATTERNS |
 | Various `src/**/*.ts` | Modify | ESLint error fixes + Prettier formatting |
@@ -664,7 +664,7 @@ git status
 Task 1 (ESLint deps) → Task 2 (ESLint config) → Task 3 (Fix ESLint errors)
 Task 4 (Prettier deps) → Task 5 (Format code)
 Task 3 + Task 5 → Task 6 (package.json scripts)
-Task 6 → Task 7 (Deprecate guardian.yml)
+Task 6 → Task 7 (Deprecate guardian.yml (removed))
 Task 6 → Task 8 (CI workflow)
 Task 6 → Task 9 (Release workflow)
 Task 6 → Task 10 (IGNORE_PATTERNS fix)

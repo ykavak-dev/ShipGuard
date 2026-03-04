@@ -1,55 +1,12 @@
 import { glob } from 'fast-glob';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { stripCommentsFromLines } from './commentUtils';
 import { loadYamlRules } from './yamlRuleLoader';
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Types
-// ═════════════════════════════════════════════════════════════════════════════
-
-export interface Finding {
-  filePath: string;
-  line?: number;
-  column?: number;
-  severity: 'critical' | 'medium' | 'low';
-  message: string;
-  ruleId: string;
-  category: string;
-}
-
-export interface ScanContext {
-  rootPath: string;
-  filePath: string;
-  content: string;
-  lines: string[];
-}
-
-export interface Rule {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  severity: 'critical' | 'medium' | 'low';
-  applicableTo: string[];
-  check(context: ScanContext): Finding[];
-}
-
-export interface ScanResult {
-  critical: Finding[];
-  medium: Finding[];
-  low: Finding[];
-  metadata?: ScanMetadata;
-}
-
-export interface ScanMetadata {
-  durationMs: number;
-  filesScanned: number;
-  filesSkipped: number;
-  filesWithErrors: number;
-  rulesLoaded: number;
-  startedAt: string;
-  completedAt: string;
-}
+// Re-export core types so existing imports from './scanner' keep working
+export type { Finding, ScanContext, Rule, ScanResult, ScanMetadata } from './types';
+import type { Finding, ScanContext, Rule, ScanResult } from './types';
 
 interface ScanError {
   filePath: string;
@@ -83,12 +40,17 @@ const IGNORE_PATTERNS = [
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const CONCURRENCY_LIMIT = 50; // Parallel file processing limit
+const MAX_FINDINGS_PER_FILE = 100; // Prevent DoS from rules matching every line
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Rule Loading
 // ═════════════════════════════════════════════════════════════════════════════
 
-async function loadRules(): Promise<Rule[]> {
+let cachedRules: Rule[] | null = null;
+
+/** Loads all security rules (built-in + YAML). Results are cached unless `forceReload` is true. */
+async function loadRules(forceReload = false): Promise<Rule[]> {
+  if (cachedRules && !forceReload) return cachedRules;
   const rules: Rule[] = [];
   const rulesDir = path.join(__dirname, 'rules');
 
@@ -143,7 +105,8 @@ async function loadRules(): Promise<Rule[]> {
     ruleIds.add(rule.id);
     deduped.push(rule);
   }
-  return deduped;
+  cachedRules = deduped;
+  return cachedRules;
 }
 
 function isValidRule(obj: unknown): obj is Rule {
@@ -154,6 +117,7 @@ function isValidRule(obj: unknown): obj is Rule {
   );
 }
 
+/** Returns true if a rule's `applicableTo` patterns match the given file path. */
 function shouldApplyRule(rule: Rule, filePath: string): boolean {
   const normalizedPath = filePath.toLowerCase();
   return rule.applicableTo.some((pattern) => {
@@ -225,11 +189,13 @@ async function scanSingleFile(
   rootPath: string,
   rules: Rule[]
 ): Promise<ScanFileResult> {
+  const lines = content.split('\n');
   const context: ScanContext = {
     rootPath,
     filePath,
     content,
-    lines: content.split('\n'),
+    lines,
+    strippedLines: stripCommentsFromLines(lines),
   };
 
   const findings: Finding[] = [];
@@ -242,6 +208,7 @@ async function scanSingleFile(
     try {
       const ruleFindings = rule.check(context);
       for (const finding of ruleFindings) {
+        if (findings.length >= MAX_FINDINGS_PER_FILE) break;
         findings.push({
           ...finding,
           filePath: path.relative(rootPath, finding.filePath),
@@ -257,6 +224,7 @@ async function scanSingleFile(
         error: `Rule ${rule.id} failed: ${errorMsg}`,
       });
     }
+    if (findings.length >= MAX_FINDINGS_PER_FILE) break;
   }
 
   return { findings, errors };
@@ -284,13 +252,18 @@ async function processBatch<T, R>(
 // ═════════════════════════════════════════════════════════════════════════════
 
 function categorizeFindings(findings: Finding[]): Pick<ScanResult, 'critical' | 'medium' | 'low'> {
-  return {
-    critical: findings.filter((f) => f.severity === 'critical'),
-    medium: findings.filter((f) => f.severity === 'medium'),
-    low: findings.filter((f) => f.severity === 'low'),
-  };
+  const critical: Finding[] = [];
+  const medium: Finding[] = [];
+  const low: Finding[] = [];
+  for (const f of findings) {
+    if (f.severity === 'critical') critical.push(f);
+    else if (f.severity === 'medium') medium.push(f);
+    else low.push(f);
+  }
+  return { critical, medium, low };
 }
 
+/** Scans a directory tree for security vulnerabilities and returns categorised findings. */
 export async function scanProject(rootPath: string): Promise<ScanResult> {
   const startedAt = new Date().toISOString();
   const startTime = performance.now();
@@ -310,33 +283,27 @@ export async function scanProject(rootPath: string): Promise<ScanResult> {
     ignore: IGNORE_PATTERNS,
   });
 
-  // Read all files in parallel with concurrency limit
-  const fileReadResults = await processBatch(
-    files,
-    (filePath) => readFileWithResult(filePath),
-    CONCURRENCY_LIMIT
-  );
-
-  // Process successfully read files
-  const validFiles: { filePath: string; content: string }[] = [];
+  // Read + scan in a single pipeline so file contents are GC-eligible after each batch
+  let filesScannedCount = 0;
   let filesSkipped = 0;
-  for (const result of fileReadResults) {
-    if (result.success) {
-      validFiles.push({ filePath: result.filePath, content: result.content });
-    } else {
-      filesSkipped++;
-      if ('reason' in result && result.reason === 'read_error') {
-        scanErrors.push({ filePath: result.filePath, error: result.error || 'Unknown error' });
-      }
-    }
-  }
 
-  // Scan files in parallel with concurrency limit
   const scanResults = await processBatch(
-    validFiles,
-    async ({ filePath, content }) => {
+    files,
+    async (filePath) => {
+      const readResult = await readFileWithResult(filePath);
+      if (!readResult.success) {
+        filesSkipped++;
+        if (readResult.reason === 'read_error') {
+          return {
+            findings: [],
+            errors: [{ filePath: readResult.filePath, error: readResult.error || 'Unknown error' }],
+          };
+        }
+        return { findings: [], errors: [] };
+      }
+      filesScannedCount++;
       try {
-        return await scanSingleFile(filePath, content, absoluteRoot, rules);
+        return await scanSingleFile(readResult.filePath, readResult.content, absoluteRoot, rules);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         return {
@@ -359,14 +326,18 @@ export async function scanProject(rootPath: string): Promise<ScanResult> {
 
   // Log errors in development mode
   if (scanErrors.length > 0 && process.env.DEBUG) {
-    console.error('Scan errors:', scanErrors);
+    console.error('[shipguard] Scan errors:', scanErrors);
+  }
+
+  if (filesScannedCount === 0) {
+    console.warn('[shipguard] No scannable files found in the target directory.');
   }
 
   return {
     ...categorizeFindings(allFindings),
     metadata: {
       durationMs,
-      filesScanned: validFiles.length,
+      filesScanned: filesScannedCount,
       filesSkipped,
       filesWithErrors: scanErrors.length,
       rulesLoaded: rules.length,

@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { checkMcpAuth, isCacheStale } from '../types';
 import type { ScanCache } from '../types';
 
 export function registerScanResource(server: McpServer, cache: ScanCache): void {
@@ -10,11 +11,28 @@ export function registerScanResource(server: McpServer, cache: ScanCache): void 
       mimeType: 'application/json',
     },
     async (uri) => {
-      if (!cache.lastResult) {
+      const parsedUrl = new URL(uri.href);
+      const token = parsedUrl.searchParams.get('token') ?? undefined;
+      const authError = checkMcpAuth(token);
+      parsedUrl.searchParams.delete('token');
+      const safeUri = parsedUrl.toString();
+      if (authError) {
         return {
           contents: [
             {
-              uri: uri.href,
+              uri: safeUri,
+              mimeType: 'application/json',
+              text: JSON.stringify({ error: authError }),
+            },
+          ],
+        };
+      }
+
+      if (!cache.lastResult || isCacheStale(cache)) {
+        return {
+          contents: [
+            {
+              uri: safeUri,
               mimeType: 'application/json',
               text: JSON.stringify({
                 message: 'No scan results available. Run scan_repository first.',
@@ -44,7 +62,7 @@ export function registerScanResource(server: McpServer, cache: ScanCache): void 
       return {
         contents: [
           {
-            uri: uri.href,
+            uri: safeUri,
             mimeType: 'application/json',
             text: JSON.stringify(response, null, 2),
           },

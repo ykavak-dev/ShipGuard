@@ -8,6 +8,9 @@ const SENSITIVE_PORTS: { port: number; service: string }[] = [
   { port: 9200, service: 'Elasticsearch' },
 ];
 
+const EXPOSE_REGEX = /^EXPOSE\s+(.+)/i;
+const PORT_PATTERN = /\d+/g;
+
 const rule: Rule = {
   id: 'docker-expose-postgres',
   name: 'Docker Exposes Database/Service Port',
@@ -17,22 +20,25 @@ const rule: Rule = {
   applicableTo: ['Dockerfile'],
   check(context: ScanContext): Finding[] {
     const findings: Finding[] = [];
-    const exposeRegex = /^EXPOSE\s+(\d+)/i;
 
     for (let i = 0; i < context.lines.length; i++) {
-      const match = exposeRegex.exec(context.lines[i].trim());
+      const match = EXPOSE_REGEX.exec(context.lines[i].trim());
       if (match) {
-        const port = parseInt(match[1], 10);
-        const entry = SENSITIVE_PORTS.find((p) => p.port === port);
-        if (entry) {
-          findings.push({
-            filePath: context.filePath,
-            line: i + 1,
-            severity: 'medium',
-            message: `Dockerfile exposes ${entry.service} port ${entry.port} - use internal Docker networking instead`,
-            ruleId: 'docker-expose-postgres',
-            category: 'docker',
-          });
+        let portMatch: RegExpExecArray | null;
+        PORT_PATTERN.lastIndex = 0;
+        while ((portMatch = PORT_PATTERN.exec(match[1])) !== null) {
+          const port = parseInt(portMatch[0], 10);
+          const entry = SENSITIVE_PORTS.find((p) => p.port === port);
+          if (entry) {
+            findings.push({
+              filePath: context.filePath,
+              line: i + 1,
+              severity: 'medium',
+              message: `Dockerfile exposes ${entry.service} port ${entry.port} - use internal Docker networking instead`,
+              ruleId: 'docker-expose-postgres',
+              category: 'docker',
+            });
+          }
         }
       }
     }

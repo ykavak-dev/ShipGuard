@@ -4,7 +4,7 @@ import { calculateScore } from '../../core/scoring';
 import { isWithinDirectory } from '../../core/pathValidation';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ScanCache } from '../types';
-import { updateScan } from '../types';
+import { updateScan, checkMcpAuth } from '../types';
 
 export function registerScanTool(server: McpServer, cache: ScanCache): void {
   server.registerTool(
@@ -14,10 +14,19 @@ export function registerScanTool(server: McpServer, cache: ScanCache): void {
       inputSchema: z.object({
         path: z.string().optional().describe('Directory path to scan (defaults to SHIPGUARD_ROOT)'),
         threshold: z.number().default(80).describe('Minimum acceptable risk score'),
+        token: z
+          .string()
+          .optional()
+          .describe('Auth token (required when SHIPGUARD_MCP_TOKEN is set)'),
       }),
     },
-    async ({ path, threshold }) => {
+    async ({ path, threshold, token }) => {
       try {
+        const authError = checkMcpAuth(token);
+        if (authError) {
+          return { content: [{ type: 'text' as const, text: authError }], isError: true };
+        }
+
         const scanPath = path || process.env.SHIPGUARD_ROOT || process.cwd();
 
         // Path traversal validation: ensure scan path is within allowed directory
@@ -27,7 +36,7 @@ export function registerScanTool(server: McpServer, cache: ScanCache): void {
             content: [
               {
                 type: 'text' as const,
-                text: `Path validation failed: "${scanPath}" is outside the allowed directory`,
+                text: 'Path validation failed: provided path is outside the allowed directory',
               },
             ],
             isError: true,

@@ -17,7 +17,10 @@ export function registerQuickCheckPrompt(server: McpServer): void {
           content: {
             type: 'text' as const,
             text: [
-              `Run a quick security check${path ? ` on "${path}"` : ''}.`,
+              path
+                ? `Run a quick security check on the path provided below.`
+                : `Run a quick security check.`,
+              ...(path ? [`<user_provided_path>${path}</user_provided_path>`] : []),
               '',
               '1. Use scan_repository to scan.',
               '2. Give me a one-paragraph summary: score, critical count, top concern.',

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { loadRules } from '../../core/scanner';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { checkMcpAuth } from '../types';
 
 export function registerRulesTool(server: McpServer): void {
   server.registerTool(
@@ -9,10 +10,18 @@ export function registerRulesTool(server: McpServer): void {
       description: 'List all active security rules with their severity and descriptions',
       inputSchema: z.object({
         category: z.string().optional().describe('Filter by category (optional)'),
+        token: z
+          .string()
+          .optional()
+          .describe('Auth token (required when SHIPGUARD_MCP_TOKEN is set)'),
       }),
     },
-    async ({ category }) => {
+    async ({ category, token }) => {
       try {
+        const authError = checkMcpAuth(token);
+        if (authError) {
+          return { content: [{ type: 'text' as const, text: authError }], isError: true };
+        }
         let rules = await loadRules();
 
         if (category) {

@@ -1,4 +1,5 @@
 import type { ScanResult, Rule } from '../scanner';
+import { VERSION } from '../../version';
 
 const SARIF_SCHEMA =
   'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json';
@@ -21,6 +22,7 @@ function toUri(filePath: string): string {
   return filePath.replace(/\\/g, '/');
 }
 
+/** Generates a SARIF v2.1.0 report from scan results. */
 export function generateSarif(scanResult: ScanResult, rules: Rule[]): object {
   const allFindings = [...scanResult.critical, ...scanResult.medium, ...scanResult.low];
 
@@ -77,8 +79,8 @@ export function generateSarif(scanResult: ScanResult, rules: Rule[]): object {
         tool: {
           driver: {
             name: 'ShipGuard',
-            version: '2.0.0',
-            informationUri: 'https://github.com/shipguard/shipguard',
+            version: VERSION,
+            informationUri: 'https://github.com/ykavak-dev/ShipGuard',
             rules: sarifRules,
           },
         },

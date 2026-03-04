@@ -3,6 +3,7 @@ import { scanProject } from '../../core/scanner';
 import { calculateScore } from '../../core/scoring';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ScanCache } from '../types';
+import { checkMcpAuth, isCacheStale, updateScan } from '../types';
 
 export function registerReportTool(server: McpServer, cache: ScanCache): void {
   server.registerTool(
@@ -11,28 +12,33 @@ export function registerReportTool(server: McpServer, cache: ScanCache): void {
       description: 'Get a summary risk report from the latest scan',
       inputSchema: z.object({
         format: z.enum(['summary', 'detailed']).default('summary').describe('Report format'),
+        token: z
+          .string()
+          .optional()
+          .describe('Auth token (required when SHIPGUARD_MCP_TOKEN is set)'),
       }),
     },
-    async ({ format }) => {
+    async ({ format, token }) => {
       try {
+        const authError = checkMcpAuth(token);
+        if (authError) {
+          return { content: [{ type: 'text' as const, text: authError }], isError: true };
+        }
         // Use cache if available, otherwise do a fresh scan
-        if (!cache.lastResult) {
+        if (!cache.lastResult || isCacheStale(cache)) {
           const scanPath = process.env.SHIPGUARD_ROOT || process.cwd();
           const result = await scanProject(scanPath);
-          const countResult = {
+          const score = calculateScore({
             critical: result.critical.length,
             medium: result.medium.length,
             low: result.low.length,
-          };
-          cache.lastResult = result;
-          cache.lastScore = calculateScore(countResult);
-          cache.lastPath = scanPath;
-          cache.lastTimestamp = new Date().toISOString();
+          });
+          updateScan(cache, result, score, scanPath);
         }
 
-        const result = cache.lastResult;
+        const result = cache.lastResult!;
         const score = cache.lastScore!;
-        const allFindings = [...result.critical, ...result.medium, ...result.low];
+        const totalFindings = result.critical.length + result.medium.length + result.low.length;
 
         // Top 3 risks: first 3 critical, then medium
         const topRisks = [...result.critical, ...result.medium].slice(0, 3);
@@ -46,7 +52,7 @@ export function registerReportTool(server: McpServer, cache: ScanCache): void {
               critical: result.critical.length,
               medium: result.medium.length,
               low: result.low.length,
-              total: allFindings.length,
+              total: totalFindings,
             },
             topRisks: topRisks.map((f) => ({
               ruleId: f.ruleId,
@@ -70,7 +76,7 @@ export function registerReportTool(server: McpServer, cache: ScanCache): void {
             critical: result.critical.length,
             medium: result.medium.length,
             low: result.low.length,
-            total: allFindings.length,
+            total: totalFindings,
           },
           findings: {
             critical: result.critical,

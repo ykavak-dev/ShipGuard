@@ -1,7 +1,19 @@
-import * as fs from 'fs';
+import { promises as fsAsync } from 'fs';
 import * as path from 'path';
 import { Finding } from './scanner';
 import { resolveSafePath } from './pathValidation';
+
+const SENSITIVE_KEY_PATTERN = /password|secret|key|token|private|api_key|auth/i;
+const EXPOSE_POSTGRES_PATTERN = /^EXPOSE\s+5432/i;
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fsAsync.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Types
@@ -75,10 +87,8 @@ function generateHunks(oldLines: string[], newLines: string[]): PatchHunk[] {
     let newCount = 0;
 
     while (i < oldLines.length || j < newLines.length) {
-      const lookAheadOld = oldLines.slice(i, i + 3);
-      const lookAheadNew = newLines.slice(j, j + 3);
-
-      if (arraysEqual(lookAheadOld, lookAheadNew) && lookAheadOld.length > 0) break;
+      if (i < oldLines.length && j < newLines.length && matchesAhead(oldLines, i, newLines, j, 3))
+        break;
 
       if (i < oldLines.length && (j >= newLines.length || oldLines[i] !== newLines[j])) {
         hunkLines.push('-' + oldLines[i]);
@@ -118,9 +128,21 @@ function formatHunk(hunk: PatchHunk): string[] {
   return [header, ...hunk.lines];
 }
 
-function arraysEqual(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((val, i) => val === b[i]);
+/** Check if `count` elements starting at aIdx/bIdx match without allocating slices. */
+function matchesAhead(
+  a: string[],
+  aIdx: number,
+  b: string[],
+  bIdx: number,
+  count: number
+): boolean {
+  const aLen = Math.min(count, a.length - aIdx);
+  const bLen = Math.min(count, b.length - bIdx);
+  if (aLen !== bLen || aLen === 0) return false;
+  for (let k = 0; k < aLen; k++) {
+    if (a[aIdx + k] !== b[bIdx + k]) return false;
+  }
+  return true;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -132,11 +154,11 @@ export async function generateEnvExampleFix(rootPath: string): Promise<FixSugges
   const envExamplePath = '.env.example';
   const fullEnvExamplePath = path.join(rootPath, envExamplePath);
 
-  if (!fs.existsSync(envPath) || fs.existsSync(fullEnvExamplePath)) {
+  if (!(await fileExists(envPath)) || (await fileExists(fullEnvExamplePath))) {
     return null;
   }
 
-  const envContent = fs.readFileSync(envPath, 'utf-8');
+  const envContent = await fsAsync.readFile(envPath, 'utf-8');
   const lines = envContent.split('\n');
 
   const exampleLines = lines.map((line) => {
@@ -146,8 +168,7 @@ export async function generateEnvExampleFix(rootPath: string): Promise<FixSugges
     const eqIndex = line.indexOf('=');
     if (eqIndex > 0) {
       const key = line.substring(0, eqIndex).trim();
-      const sensitiveKeys = /password|secret|key|token|private|api_key|auth/i;
-      if (sensitiveKeys.test(key)) {
+      if (SENSITIVE_KEY_PATTERN.test(key)) {
         return `${key}=YOUR_${key.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_HERE`;
       }
       return `${key}=your_${key.toLowerCase().replace(/[^a-z0-9]/g, '_')}_here`;
@@ -181,7 +202,7 @@ export async function generateLoggingNoteFix(
   const notePath = 'LOGGING_MIGRATION_NOTE.md';
   const fullNotePath = path.join(rootPath, notePath);
 
-  if (fs.existsSync(fullNotePath)) return null;
+  if (await fileExists(fullNotePath)) return null;
 
   const noteContent = `# Logging Migration Note
 
@@ -239,15 +260,15 @@ export async function generateDockerExposeFix(
 ): Promise<FixSuggestion | null> {
   const fullPath = path.join(rootPath, filePath);
 
-  if (!fs.existsSync(fullPath)) return null;
+  if (!(await fileExists(fullPath))) return null;
 
-  const content = fs.readFileSync(fullPath, 'utf-8');
+  const content = await fsAsync.readFile(fullPath, 'utf-8');
   const lines = content.split('\n');
 
   const exposePostgresLines: number[] = [];
 
   lines.forEach((line, idx) => {
-    if (/^EXPOSE\s+5432/i.test(line.trim())) {
+    if (EXPOSE_POSTGRES_PATTERN.test(line.trim())) {
       exposePostgresLines.push(idx);
     }
   });
@@ -310,6 +331,7 @@ async function collectFixSuggestions(
   return suggestions;
 }
 
+/** Generates a unified diff patch string from scan results. */
 export async function generatePatch(
   rootPath: string,
   scanResults: ScanResultsInput
@@ -343,6 +365,7 @@ export async function generatePatch(
   return parts.join('\n');
 }
 
+/** Generates fix suggestions for the given scan results. */
 export async function generateFixes(
   rootPath: string,
   scanResults: ScanResultsInput
@@ -350,27 +373,28 @@ export async function generateFixes(
   return collectFixSuggestions(rootPath, scanResults);
 }
 
-export function applyFix(rootPath: string, fix: FixSuggestion): void {
+/** Applies an auto-applicable fix suggestion to the filesystem. */
+export async function applyFix(rootPath: string, fix: FixSuggestion): Promise<void> {
   // Validate path to prevent path traversal attacks
   let safePath: string;
   try {
     safePath = resolveSafePath(rootPath, fix.filePath);
   } catch (err) {
     console.error(
-      `Skipping fix for ${fix.filePath}: ${err instanceof Error ? err.message : String(err)}`
+      `[shipguard] Skipping fix for ${fix.filePath}: ${err instanceof Error ? err.message : String(err)}`
     );
     return;
   }
 
   if (fix.ruleId === 'env-missing-example') {
     const content = extractNewFileContent(fix.patch);
-    fs.writeFileSync(safePath, content, 'utf-8');
+    await fsAsync.writeFile(safePath, content, 'utf-8');
     return;
   }
 
   if (fix.ruleId === 'logging-migration-note') {
     const content = extractNewFileContent(fix.patch);
-    fs.writeFileSync(safePath, content, 'utf-8');
+    await fsAsync.writeFile(safePath, content, 'utf-8');
     return;
   }
 

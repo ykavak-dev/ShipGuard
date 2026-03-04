@@ -1,9 +1,18 @@
 {
-  "name": "shipguard",
+  "name": "shipguard-cli",
   "version": "2.0.0",
   "description": "AI-powered security scanner with Claude API integration and MCP server support",
-  "main": "dist/cli.js",
-  "types": "dist/cli.d.ts",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js"
+    },
+    "./cli": "./dist/cli.js",
+    "./mcp": "./dist/mcp/server.js"
+  },
   "bin": {
     "shipguard": "dist/cli.js",
     "shipguard-mcp": "dist/mcp/server.js"
@@ -12,13 +21,13 @@
     "dist/",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "shipguard-rules.example.yml"
   ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node -- src/cli.ts",
     "start": "node dist/cli.js",
-    "clean": "rm -rf dist",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -44,7 +53,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/ykavak-dev/ShipGuard.git"
+    "url": "git+https://github.com/ykavak-dev/ShipGuard.git"
   },
   "homepage": "https://github.com/ykavak-dev/ShipGuard",
   "bugs": {
@@ -52,21 +61,27 @@
   },
   "author": "Yigit Kavak",
   "license": "MIT",
+  "peerDependencies": {
+    "@anthropic-ai/sdk": "^0.78.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    }
+  },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "chalk": "^5.6.2",
+    "chalk": "4.1.2",
     "commander": "^11.0.0",
     "fast-glob": "^3.3.3",
     "js-yaml": "^4.1.1",
-    "ora": "^9.3.0",
+    "ora": "5.4.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/chalk": "^0.4.31",
+    "@anthropic-ai/sdk": "^0.78.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
-    "@types/ora": "^3.1.0",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
     "@vitest/coverage-v8": "^4.0.18",

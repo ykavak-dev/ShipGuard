@@ -39,10 +39,29 @@ function getGlobalRcPath(): string {
   return path.join(os.homedir(), RC_FILENAME);
 }
 
+const VALID_PROVIDERS = ['claude', 'openai', 'ollama'];
+
 function readRcFile(filePath: string): Partial<ShipGuardConfig> {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(content) as Partial<ShipGuardConfig>;
+    const parsed = JSON.parse(content);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+    const result: Partial<ShipGuardConfig> = {};
+    if (typeof parsed.provider === 'string' && VALID_PROVIDERS.includes(parsed.provider)) {
+      result.provider = parsed.provider as ShipGuardConfig['provider'];
+    }
+    if (typeof parsed.model === 'string') result.model = parsed.model;
+    if (typeof parsed.apiKey === 'string') result.apiKey = parsed.apiKey;
+    if (typeof parsed.threshold === 'number' && parsed.threshold >= 0 && parsed.threshold <= 100) {
+      result.threshold = parsed.threshold;
+    }
+    if (typeof parsed.rulesDir === 'string') result.rulesDir = parsed.rulesDir;
+    if (typeof parsed.mcpPort === 'number' && Number.isInteger(parsed.mcpPort)) {
+      result.mcpPort = parsed.mcpPort;
+    }
+    if (typeof parsed.stream === 'boolean') result.stream = parsed.stream;
+    if (typeof parsed.verbose === 'boolean') result.verbose = parsed.verbose;
+    return result;
   } catch {
     return {};
   }
@@ -56,8 +75,8 @@ function checkFilePermissions(filePath: string, config: Partial<ShipGuardConfig>
     const stats = fs.statSync(filePath);
     const mode = (stats.mode & 0o777).toString(8);
     if (mode !== '600') {
-      console.error(
-        `\x1b[33m⚠ Warning: ${filePath} contains an API key but has permissions ${mode}. Run: chmod 600 ${filePath}\x1b[0m`
+      console.warn(
+        `[shipguard] WARNING: ${filePath} contains an API key but has permissions ${mode}. Run: chmod 600 ${filePath}`
       );
     }
   } catch {
@@ -86,7 +105,7 @@ function loadEnvOverrides(): Partial<ShipGuardConfig> {
   }
   if (process.env.SHIPGUARD_THRESHOLD) {
     const t = parseInt(process.env.SHIPGUARD_THRESHOLD, 10);
-    if (!isNaN(t)) overrides.threshold = t;
+    if (!isNaN(t)) overrides.threshold = Math.max(0, Math.min(100, t));
   }
   if (process.env.SHIPGUARD_RULES_DIR) {
     overrides.rulesDir = process.env.SHIPGUARD_RULES_DIR;
@@ -103,6 +122,7 @@ function loadEnvOverrides(): Partial<ShipGuardConfig> {
 // API Key Resolution
 // ═════════════════════════════════════════════════════════════════════════════
 
+/** Resolves an API key from explicit config, generic env var, or provider-specific env var. */
 export function getApiKey(provider: string, configApiKey?: string): string | undefined {
   // 1. Explicit config apiKey
   if (configApiKey) return configApiKey;
@@ -122,10 +142,19 @@ export function getApiKey(provider: string, configApiKey?: string): string | und
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Load Config (merge hierarchy)
+// Load Config (merge hierarchy, cached with TTL)
 // ═════════════════════════════════════════════════════════════════════════════
 
+const CONFIG_CACHE_TTL_MS = 5000;
+let configCache: { config: ShipGuardConfig; timestamp: number } | null = null;
+
+/** Merges defaults, global/local rc files, env vars, and CLI overrides into a final config. */
 export function loadConfig(cliOverrides?: Partial<ShipGuardConfig>): ShipGuardConfig {
+  // Skip cache when CLI overrides are provided (different call-sites may pass different flags)
+  if (!cliOverrides && configCache && Date.now() - configCache.timestamp < CONFIG_CACHE_TTL_MS) {
+    return { ...configCache.config };
+  }
+
   // Layer 1: Defaults
   const config = { ...DEFAULTS };
 
@@ -151,13 +180,24 @@ export function loadConfig(cliOverrides?: Partial<ShipGuardConfig>): ShipGuardCo
   // Resolve API key
   config.apiKey = getApiKey(config.provider, config.apiKey);
 
+  // Cache when no overrides
+  if (!cliOverrides) {
+    configCache = { config: { ...config }, timestamp: Date.now() };
+  }
+
   return config;
+}
+
+/** Clear the config cache (useful for testing). */
+export function clearConfigCache(): void {
+  configCache = null;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Save Config
 // ═════════════════════════════════════════════════════════════════════════════
 
+/** Persists config values to the local (default) or global rc file. */
 export function saveConfig(values: Partial<ShipGuardConfig>, global?: boolean): void {
   const filePath = global ? getGlobalRcPath() : getLocalRcPath();
 
@@ -170,11 +210,13 @@ export function saveConfig(values: Partial<ShipGuardConfig>, global?: boolean): 
   }
 
   const merged = { ...existing, ...stripUndefined(values) };
-  fs.writeFileSync(filePath, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
+  const data = JSON.stringify(merged, null, 2) + '\n';
 
-  // Set restrictive permissions if apiKey is present
+  // Write with restrictive permissions atomically to avoid race condition
   if (merged.apiKey && process.platform !== 'win32') {
-    fs.chmodSync(filePath, 0o600);
+    fs.writeFileSync(filePath, data, { encoding: 'utf-8', mode: 0o600 });
+  } else {
+    fs.writeFileSync(filePath, data, 'utf-8');
   }
 }
 
@@ -182,10 +224,11 @@ export function saveConfig(values: Partial<ShipGuardConfig>, global?: boolean): 
 // Mask API Key
 // ═════════════════════════════════════════════════════════════════════════════
 
+/** Returns a masked version of an API key for safe display (e.g. `sk-a***`). */
 export function maskApiKey(key: string | undefined): string {
   if (!key) return '(not set)';
   if (key.length <= 8) return '***';
-  return key.substring(0, 7) + '***' + key.substring(key.length - 3);
+  return key.substring(0, 4) + '***';
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

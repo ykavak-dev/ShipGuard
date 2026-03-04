@@ -15,10 +15,11 @@ function run(args: string[], options?: { cwd?: string }): { stdout: string; exit
       env: { ...process.env, NO_COLOR: '1' },
     });
     return { stdout, exitCode: 0 };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const e = err as { stdout?: Buffer; status?: number };
     return {
-      stdout: err.stdout?.toString() ?? '',
-      exitCode: err.status ?? 1,
+      stdout: e.stdout?.toString() ?? '',
+      exitCode: e.status ?? 1,
     };
   }
 }

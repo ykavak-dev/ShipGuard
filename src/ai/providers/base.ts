@@ -1,5 +1,5 @@
 import type { ScanResult, Finding } from '../../core/scanner';
-import type { AIReviewResult } from '../aiReview';
+import type { AIReviewResult } from '../validation';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // AI Provider Types
@@ -23,6 +23,9 @@ export interface TokenUsage {
 // Abstract AIProvider
 // ═════════════════════════════════════════════════════════════════════════════
 
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000;
+
 export abstract class AIProvider {
   abstract readonly name: string;
   abstract readonly model: string;
@@ -43,5 +46,47 @@ export abstract class AIProvider {
     this.tokenUsage.input += input;
     this.tokenUsage.output += output;
     this.tokenUsage.cost += cost;
+  }
+
+  protected async callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const result = await fn();
+
+        // Handle fetch Response objects: fetch doesn't throw on HTTP errors
+        if (result instanceof Response && !result.ok) {
+          const status = result.status;
+          if (status === 429 || status >= 500) {
+            const baseDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+            const jitter = Math.random() * baseDelay * 0.5;
+            await new Promise((resolve) => setTimeout(resolve, baseDelay + jitter));
+            lastError = new Error(`HTTP ${status}`);
+            continue;
+          }
+          // Non-retryable HTTP error — return as-is for caller to handle
+          return result;
+        }
+
+        return result;
+      } catch (err: unknown) {
+        lastError = err;
+        const status = (err as { status?: number }).status;
+        const responseStatus = (err as { response?: { status?: number } }).response?.status;
+        const httpStatus = status ?? responseStatus;
+
+        if (httpStatus === 429 || (httpStatus !== undefined && httpStatus >= 500)) {
+          const baseDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+          const jitter = Math.random() * baseDelay * 0.5;
+          await new Promise((resolve) => setTimeout(resolve, baseDelay + jitter));
+          continue;
+        }
+
+        throw err;
+      }
+    }
+
+    throw lastError;
   }
 }

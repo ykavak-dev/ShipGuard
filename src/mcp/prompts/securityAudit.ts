@@ -18,7 +18,8 @@ export function registerSecurityAuditPrompt(server: McpServer): void {
           content: {
             type: 'text' as const,
             text: [
-              `Run a comprehensive security audit on "${path}".`,
+              `Run a comprehensive security audit on the path provided below.`,
+              `<user_provided_path>${path}</user_provided_path>`,
               '',
               'Steps:',
               '1. Use the scan_repository tool to scan the directory.',

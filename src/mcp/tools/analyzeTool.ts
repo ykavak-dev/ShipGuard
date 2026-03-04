@@ -1,10 +1,12 @@
-import * as fs from 'fs';
+import { promises as fsAsync } from 'fs';
 import * as path from 'path';
 import { z } from 'zod';
 import { loadRules, shouldApplyRule } from '../../core/scanner';
 import { resolveSafePath, isSymlink } from '../../core/pathValidation';
+import { stripCommentsFromLines } from '../../core/commentUtils';
 import type { Finding, ScanContext } from '../../core/scanner';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { checkMcpAuth } from '../types';
 
 export function registerAnalyzeTool(server: McpServer): void {
   server.registerTool(
@@ -17,10 +19,18 @@ export function registerAnalyzeTool(server: McpServer): void {
           .array(z.string())
           .optional()
           .describe('Specific rule IDs to apply (optional, defaults to all)'),
+        token: z
+          .string()
+          .optional()
+          .describe('Auth token (required when SHIPGUARD_MCP_TOKEN is set)'),
       }),
     },
-    async ({ filePath, rules: ruleIds }) => {
+    async ({ filePath, rules: ruleIds, token }) => {
       try {
+        const authError = checkMcpAuth(token);
+        if (authError) {
+          return { content: [{ type: 'text' as const, text: authError }], isError: true };
+        }
         // Path traversal validation
         const basePath = process.env.SHIPGUARD_ROOT || process.cwd();
         let resolvedPath: string;
@@ -50,20 +60,22 @@ export function registerAnalyzeTool(server: McpServer): void {
           };
         }
 
-        if (!fs.existsSync(resolvedPath)) {
+        let content: string;
+        try {
+          content = await fsAsync.readFile(resolvedPath, 'utf-8');
+        } catch {
           return {
             content: [{ type: 'text' as const, text: `File not found: ${filePath}` }],
             isError: true,
           };
         }
-
-        const content = fs.readFileSync(resolvedPath, 'utf-8');
         const lines = content.split('\n');
         const context: ScanContext = {
           rootPath: path.dirname(filePath),
           filePath,
           content,
           lines,
+          strippedLines: stripCommentsFromLines(lines),
         };
 
         let applicableRules = await loadRules();

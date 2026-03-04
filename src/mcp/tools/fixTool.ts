@@ -1,10 +1,12 @@
-import * as fs from 'fs';
+import { promises as fsAsync } from 'fs';
 import { z } from 'zod';
 import { loadRules, shouldApplyRule } from '../../core/scanner';
 import { generateFixes, generatePatch, applyFix } from '../../core/fixEngine';
 import { resolveSafePath, isSymlink } from '../../core/pathValidation';
+import { stripCommentsFromLines } from '../../core/commentUtils';
 import type { Finding, ScanContext } from '../../core/scanner';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { checkMcpAuth } from '../types';
 
 export function registerFixTool(server: McpServer): void {
   server.registerTool(
@@ -15,10 +17,18 @@ export function registerFixTool(server: McpServer): void {
         findingId: z.string().describe("Rule ID of the finding to fix (e.g., 'hardcoded-secrets')"),
         filePath: z.string().describe('Path to the file with the finding'),
         autoApply: z.boolean().default(false).describe('Whether to auto-apply the fix'),
+        token: z
+          .string()
+          .optional()
+          .describe('Auth token (required when SHIPGUARD_MCP_TOKEN is set)'),
       }),
     },
-    async ({ findingId, filePath, autoApply }) => {
+    async ({ findingId, filePath, autoApply, token }) => {
       try {
+        const authError = checkMcpAuth(token);
+        if (authError) {
+          return { content: [{ type: 'text' as const, text: authError }], isError: true };
+        }
         // Path traversal validation
         const rootPath = process.env.SHIPGUARD_ROOT || process.cwd();
         let resolvedPath: string;
@@ -48,7 +58,11 @@ export function registerFixTool(server: McpServer): void {
           };
         }
 
-        if (!fs.existsSync(resolvedPath)) {
+        // Read the file (also handles "file not found")
+        let content: string;
+        try {
+          content = await fsAsync.readFile(resolvedPath, 'utf-8');
+        } catch {
           return {
             content: [{ type: 'text' as const, text: `File not found: ${filePath}` }],
             isError: true,
@@ -56,13 +70,13 @@ export function registerFixTool(server: McpServer): void {
         }
 
         // Run the specific rule on the file to get actual findings
-        const content = fs.readFileSync(resolvedPath, 'utf-8');
         const lines = content.split('\n');
         const context: ScanContext = {
           rootPath,
           filePath,
           content,
           lines,
+          strippedLines: stripCommentsFromLines(lines),
         };
 
         const allRules = await loadRules();
@@ -122,7 +136,7 @@ export function registerFixTool(server: McpServer): void {
         let applied = false;
         if (autoApply && fixes.length > 0) {
           for (const fix of fixes.filter((f) => f.canAutoApply)) {
-            applyFix(rootPath, fix);
+            await applyFix(rootPath, fix);
             applied = true;
           }
         }
