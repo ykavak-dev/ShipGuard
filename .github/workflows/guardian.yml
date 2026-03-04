@@ -1,7 +1,7 @@
 # ⚠️ DEPRECATED: This workflow is superseded by ci.yml
 # Kept for backward compatibility. Use .github/workflows/ci.yml instead.
 # This workflow will be removed in a future release.
-name: Kilo Guardian Security Scan
+name: ShipGuard Security Scan (Deprecated)
 
 on:
   push:

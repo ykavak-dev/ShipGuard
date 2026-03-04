@@ -6,7 +6,7 @@
     "medium": 2,
     "low": 3
   },
-  "patch": "# Kilo Guardian Auto-Fix Patch\n# Generated: 2026-02-20T14:36:12.000Z\n# Total suggestions: 3\n\n# ═════════════════════════════════════════════════════════════════════════════\n# Fix 1/3: env-missing-example\n# File: .env.example\n# Description: Create .env.example template from existing .env file\n# Auto-apply: YES\n# ═════════════════════════════════════════════════════════════════════════════\n\n--- /dev/null\t2026-02-20 14:36:12\n+++ b/.env.example\t2026-02-20 14:36:12\n@@ -0,0 +1,10 @@\n+# Environment Variables Template\n+# Copy this file to .env and fill in your values\n+\n+DATABASE_URL=your_database_url_here\n+STRIPE_SECRET_KEY=YOUR_STRIPE_SECRET_KEY_HERE\n+REDIS_URL=your_redis_url_here\n+PORT=your_port_here\n+NODE_ENV=your_node_env_here\n+JWT_SECRET=YOUR_JWT_SECRET_HERE\n",
+  "patch": "# ShipGuard Auto-Fix Patch\n# Generated: 2026-02-20T14:36:12.000Z\n# Total suggestions: 3\n\n# ═════════════════════════════════════════════════════════════════════════════\n# Fix 1/3: env-missing-example\n# File: .env.example\n# Description: Create .env.example template from existing .env file\n# Auto-apply: YES\n# ═════════════════════════════════════════════════════════════════════════════\n\n--- /dev/null\t2026-02-20 14:36:12\n+++ b/.env.example\t2026-02-20 14:36:12\n@@ -0,0 +1,10 @@\n+# Environment Variables Template\n+# Copy this file to .env and fill in your values\n+\n+DATABASE_URL=your_database_url_here\n+STRIPE_SECRET_KEY=YOUR_STRIPE_SECRET_KEY_HERE\n+REDIS_URL=your_redis_url_here\n+PORT=your_port_here\n+NODE_ENV=your_node_env_here\n+JWT_SECRET=YOUR_JWT_SECRET_HERE\n",
   "suggestions": [
     {
       "ruleId": "env-missing-example",

@@ -92,7 +92,7 @@ describe('generatePatch', () => {
     fs.writeFileSync(path.join(dir, '.env'), 'SECRET=value\n');
 
     const patch = await generatePatch(dir, emptyScanResults());
-    expect(patch).toContain('Kilo Guardian Auto-Fix Patch');
+    expect(patch).toContain('ShipGuard Auto-Fix Patch');
     expect(patch).toContain('env-missing-example');
   });
 });
@@ -306,7 +306,7 @@ describe('generatePatch – with actual fixes', () => {
     };
 
     const patch = await generatePatch(dir, scanResults);
-    expect(patch).toContain('Kilo Guardian Auto-Fix Patch');
+    expect(patch).toContain('ShipGuard Auto-Fix Patch');
     expect(patch).toContain('docker-expose-postgres');
     expect(patch).toContain('logging-migration-note');
     expect(patch).toContain('Total suggestions:');

@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
 
       - name: Run ShipGuard scan
-        run: npx kilo-guardian scan --format sarif --output results.sarif
+        run: npx shipguard scan --format sarif --output results.sarif
 
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v3
@@ -51,7 +51,7 @@ Add `--threshold 80` to fail the workflow when the security score drops below a 
 
 ```yaml
       - name: Run ShipGuard scan
-        run: npx kilo-guardian scan --format sarif --output results.sarif --threshold 80
+        run: npx shipguard scan --format sarif --output results.sarif --threshold 80
 ```
 
 The process exits with code 1 when the score is below the threshold, failing the workflow step.

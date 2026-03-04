@@ -2,8 +2,7 @@
 
 Open-source security scanning CLI with multi-provider AI support, MCP server integration, and multiple output formats.
 
-> CLI command: `shipguard` (or `kilo-guardian` via npm link)
-> Built with Kilo Code during DeveloperWeek 2026 Hackathon
+> AI-powered security scanner with Claude API integration and MCP server support
 
 ShipGuard helps teams catch security risks before production deploy. It combines static analysis, risk scoring, AI-assisted review, patch generation, and machine-readable reports in one CLI.
 
