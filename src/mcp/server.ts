@@ -20,6 +20,7 @@ async function main(): Promise<void> {
     lastScore: null,
     lastPath: null,
     lastTimestamp: null,
+    cachedAt: null,
     history: [],
   };
 

@@ -33,6 +33,7 @@ interface YamlRulesFile {
 
 const DEFAULT_FILENAME = 'shipguard-rules.yml';
 const MAX_REGEX_LENGTH = 500;
+const REDOS_TEST_THRESHOLD_MS = 10;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Validation
@@ -67,6 +68,25 @@ function isValidPattern(p: unknown): p is YamlPattern {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ReDoS Safety Check
+// ═══════════════════════════════════════════════════════════════════════════
+
+function isSafeRegex(pattern: string, flags: string): boolean {
+  try {
+    const regex = new RegExp(pattern, flags);
+    // Test against a string that triggers backtracking in unsafe patterns
+    const testStr = 'a'.repeat(25) + 'b';
+    const start = performance.now();
+    regex.test(testStr);
+    const elapsed = performance.now() - start;
+    // If a simple test takes more than the threshold, pattern is likely unsafe
+    return elapsed < REDOS_TEST_THRESHOLD_MS;
+  } catch {
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Compiler
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -81,6 +101,12 @@ function compileYamlRule(yamlRule: YamlRule): Rule | null {
 
     try {
       const flags = p.flags || '';
+      if (!isSafeRegex(p.regex, flags)) {
+        console.error(
+          `[shipguard] Skipping unsafe regex pattern in rule "${yamlRule.id}": potential ReDoS`
+        );
+        continue;
+      }
       compiledPatterns.push({
         regex: new RegExp(p.regex, flags),
         message: p.message,

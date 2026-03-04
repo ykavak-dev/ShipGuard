@@ -47,9 +47,15 @@ module.exports = [
       'no-console': 'off',
     },
   },
-  // Core modules — console.error for internal error logging
+  // Core modules — console.error for internal error/security logging
   {
-    files: ['src/config/index.ts', 'src/core/scanner.ts', 'src/core/yamlRuleLoader.ts'],
+    files: [
+      'src/config/index.ts',
+      'src/core/scanner.ts',
+      'src/core/yamlRuleLoader.ts',
+      'src/core/fixEngine.ts',
+      'src/ai/providers/**/*.ts',
+    ],
     rules: {
       'no-console': 'off',
     },
