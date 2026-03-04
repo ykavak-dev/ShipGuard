@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import type { Ora } from 'ora';
-import type { ScanMetadata, Finding as ScannerFinding } from './scanner';
+import type { ScanMetadata, Finding as ScannerFinding } from '../scanner';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ASCII Art Header
@@ -275,12 +275,19 @@ export function printFindingDetail(finding: ScannerFinding, index: number): void
 export function printDetailedReport(findings: ScannerFinding[]): void {
   console.log(sectionTitle('DETAILED FINDINGS'));
   console.log(divider());
-  
+
   if (findings.length === 0) {
     console.log(`\n  ${icon.check} ${c.success('No findings to display')}`);
   } else {
     findings.forEach((f, i) => printFindingDetail(f, i));
   }
-  
+
   console.log('\n' + divider() + '\n');
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Re-exports: SARIF and HTML report generators
+// ═════════════════════════════════════════════════════════════════════════════
+
+export { generateSarif } from './sarif';
+export { generateHtmlReport } from './html';

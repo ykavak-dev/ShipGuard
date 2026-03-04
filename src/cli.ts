@@ -13,7 +13,10 @@ const {
   warning,
   info,
   divider,
+  generateSarif,
+  generateHtmlReport,
 } = require("./core/report") as typeof import("./core/report");
+const { loadRules: loadAllRules } = require("./core/scanner") as typeof import("./core/scanner");
 const { generatePatch, generateFixes, applyFix } = require("./core/fixEngine") as typeof import("./core/fixEngine");
 const { createProvider } = require("./ai/providerFactory") as typeof import("./ai/providerFactory");
 const {
@@ -23,7 +26,7 @@ const {
 } = require("./config") as typeof import("./config");
 
 import type { FixSuggestion } from "./core/fixEngine";
-import type { ScanResult as ScannerScanResult } from "./core/scanner";
+import type { ScanResult as ScannerScanResult, Rule } from "./core/scanner";
 import type { ShipGuardConfig } from "./config";
 
 import * as fs from 'fs';
@@ -47,6 +50,8 @@ interface CommonOptions {
   verbose?: boolean;
   json?: boolean;
   threshold?: number;
+  format?: string;
+  output?: string;
 }
 
 function buildConfig(options: CommonOptions): ShipGuardConfig {
@@ -92,6 +97,8 @@ program
   .command("scan")
   .description("Scan the project for security issues")
   .option("--json", "Output raw JSON report only")
+  .option("--format <type>", "Output format: terminal, json, sarif, html (default: terminal)")
+  .option("--output <path>", "Output file path (used with --format html)")
   .option("--threshold <number>", "Minimum acceptable risk score (fails if below)", parseInt)
   .option("--provider <provider>", "AI provider (claude, openai, ollama)")
   .option("--model <model-id>", "Model to use")
@@ -101,6 +108,9 @@ program
     const config = buildConfig(options);
     const rootPath = process.cwd();
     const threshold = config.threshold;
+
+    // --format takes precedence over --json
+    const format = options.format || (options.json ? 'json' : 'terminal');
 
     try {
       const result: ScannerScanResult = await scanProject(rootPath);
@@ -114,7 +124,8 @@ program
       const score = calculateScore(countResult);
       const passed = score >= threshold;
 
-      if (options.json) {
+      // JSON output
+      if (format === 'json') {
         const jsonOutput = {
           timestamp: new Date().toISOString(),
           path: rootPath,
@@ -133,6 +144,26 @@ program
         process.exit(passed ? 0 : 1);
       }
 
+      // SARIF output
+      if (format === 'sarif') {
+        const rules: Rule[] = await loadAllRules();
+        const sarif = generateSarif(result, rules);
+        console.log(JSON.stringify(sarif, null, 2));
+        process.exit(passed ? 0 : 1);
+      }
+
+      // HTML output
+      if (format === 'html') {
+        const rules: Rule[] = await loadAllRules();
+        const html = generateHtmlReport(result, score, threshold, rules);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const outputPath = options.output || `shipguard-report-${timestamp}.html`;
+        fs.writeFileSync(outputPath, html, 'utf-8');
+        console.log(success(`HTML report written to ${outputPath}`));
+        process.exit(passed ? 0 : 1);
+      }
+
+      // Terminal output (default)
       if (config.verbose) printVerboseConfig(config);
 
       const spinner = createSpinner("Scanning project files...");
@@ -151,7 +182,7 @@ program
         process.exit(1);
       }
     } catch (err) {
-      if (options.json) {
+      if (format === 'json' || format === 'sarif') {
         console.log(JSON.stringify({ error: String(err) }, null, 2));
       } else {
         console.error(error("Scan failed"), err);
