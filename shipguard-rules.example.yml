@@ -1,0 +1,25 @@
+# ShipGuard Custom Rules Example
+# Copy to shipguard-rules.yml and customize
+# See docs/mcp-setup.md for full documentation
+
+rules:
+  - id: "no-todo-comments"
+    name: "TODO Comments"
+    description: "Detects TODO/FIXME comments that should be resolved before shipping"
+    category: "code-quality"
+    severity: "low"
+    applicableTo: [".ts", ".js", ".jsx", ".tsx"]
+    patterns:
+      - regex: "//\\s*(TODO|FIXME|HACK|XXX)"
+        flags: "gi"
+        message: "Found unresolved {match} comment"
+
+  - id: "no-hardcoded-urls"
+    name: "Hardcoded URLs"
+    description: "Detects hardcoded localhost/IP URLs that should use environment variables"
+    category: "configuration"
+    severity: "medium"
+    applicableTo: [".ts", ".js"]
+    patterns:
+      - regex: "(https?://localhost:\\d+|https?://127\\.0\\.0\\.1)"
+        message: "Hardcoded localhost URL found, use environment variable instead"
