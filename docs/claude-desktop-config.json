@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "shipguard": {
+      "command": "npx",
+      "args": ["-y", "shipguard-mcp"],
+      "env": {
+        "SHIPGUARD_ROOT": "/path/to/your/project"
+      }
+    }
+  }
+}

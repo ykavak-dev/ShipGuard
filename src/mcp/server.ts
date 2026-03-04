@@ -4,6 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerAllTools } from './tools';
 import { registerAllResources } from './resources';
+import { registerAllPrompts } from './prompts';
 import type { ScanCache } from './types';
 
 // Re-export ScanCache for convenience (tools already import from ./types)
@@ -19,6 +20,7 @@ async function main(): Promise<void> {
     lastScore: null,
     lastPath: null,
     lastTimestamp: null,
+    history: [],
   };
 
   const server = new McpServer(
@@ -28,6 +30,7 @@ async function main(): Promise<void> {
 
   registerAllTools(server, cache);
   registerAllResources(server, cache);
+  registerAllPrompts(server);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

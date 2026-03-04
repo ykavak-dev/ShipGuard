@@ -3,6 +3,7 @@ import { scanProject } from '../../core/scanner';
 import { calculateScore } from '../../core/scoring';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ScanCache } from '../types';
+import { updateScan } from '../types';
 
 export function registerScanTool(server: McpServer, cache: ScanCache): void {
   server.registerTool(
@@ -28,11 +29,8 @@ export function registerScanTool(server: McpServer, cache: ScanCache): void {
         const score = calculateScore(countResult);
         const passed = score >= threshold;
 
-        // Update cache
-        cache.lastResult = result;
-        cache.lastScore = score;
-        cache.lastPath = scanPath;
-        cache.lastTimestamp = new Date().toISOString();
+        // Update cache + history
+        updateScan(cache, result, score, scanPath);
 
         const response = {
           score,
