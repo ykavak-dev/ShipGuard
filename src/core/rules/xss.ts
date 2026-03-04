@@ -1,4 +1,5 @@
 import type { Rule, ScanContext, Finding } from '../scanner';
+import { isCommentLine, stripInlineComments } from '../commentUtils';
 
 const XSS_PATTERNS: { pattern: RegExp; message: string }[] = [
   {
@@ -22,6 +23,23 @@ const XSS_PATTERNS: { pattern: RegExp; message: string }[] = [
     pattern: /\beval\s*\(/,
     message: 'eval() executes arbitrary code and is an XSS/injection risk. Avoid eval entirely.',
   },
+  {
+    pattern: /v-html\s*=/,
+    message: 'Vue.js v-html directive can introduce XSS vulnerabilities. Sanitize input first.',
+  },
+  {
+    pattern: /\[innerHTML\]\s*=/,
+    message:
+      'Angular [innerHTML] binding can introduce XSS vulnerabilities. Use a sanitization pipe.',
+  },
+  {
+    pattern: /\.insertAdjacentHTML\s*\(/,
+    message: 'insertAdjacentHTML() can introduce XSS vulnerabilities. Sanitize input first.',
+  },
+  {
+    pattern: /\.srcdoc\s*=/,
+    message: 'iframe srcdoc assignment can introduce XSS vulnerabilities. Sanitize input first.',
+  },
 ];
 
 const rule: Rule = {
@@ -38,11 +56,12 @@ const rule: Rule = {
       const line = context.lines[i];
       const trimmed = line.trim();
 
-      // Skip comments
-      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) continue;
+      // Skip comment lines
+      if (isCommentLine(trimmed)) continue;
+      const codeOnly = stripInlineComments(line);
 
       for (const { pattern, message } of XSS_PATTERNS) {
-        if (pattern.test(line)) {
+        if (pattern.test(codeOnly)) {
           findings.push({
             filePath: context.filePath,
             line: i + 1,

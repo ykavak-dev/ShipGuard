@@ -1,4 +1,5 @@
 import type { Rule, ScanContext, Finding } from '../scanner';
+import { isCommentLine, stripInlineComments } from '../commentUtils';
 
 const STACK_LEAK_PATTERNS: { pattern: RegExp; message: string }[] = [
   {
@@ -33,10 +34,11 @@ const rule: Rule = {
       const line = context.lines[i];
       const trimmed = line.trim();
 
-      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) continue;
+      if (isCommentLine(trimmed)) continue;
+      const codeOnly = stripInlineComments(line);
 
       for (const { pattern, message } of STACK_LEAK_PATTERNS) {
-        if (pattern.test(line)) {
+        if (pattern.test(codeOnly)) {
           findings.push({
             filePath: context.filePath,
             line: i + 1,

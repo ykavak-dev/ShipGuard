@@ -1,4 +1,5 @@
 import type { Rule, ScanContext, Finding } from '../scanner';
+import { isCommentLine, stripInlineComments } from '../commentUtils';
 
 const WEAK_HASH_PATTERN = /createHash\s*\(\s*['"](?:md5|sha1)['"]\s*\)/;
 const PSEUDO_RANDOM_PATTERN = /crypto\.pseudoRandomBytes/;
@@ -33,9 +34,10 @@ const rule: Rule = {
       const line = context.lines[i];
       const trimmed = line.trim();
 
-      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) continue;
+      if (isCommentLine(trimmed)) continue;
+      const codeOnly = stripInlineComments(line);
 
-      if (WEAK_HASH_PATTERN.test(line)) {
+      if (WEAK_HASH_PATTERN.test(codeOnly)) {
         findings.push({
           filePath: context.filePath,
           line: i + 1,
@@ -46,7 +48,7 @@ const rule: Rule = {
         });
       }
 
-      if (PSEUDO_RANDOM_PATTERN.test(line)) {
+      if (PSEUDO_RANDOM_PATTERN.test(codeOnly)) {
         findings.push({
           filePath: context.filePath,
           line: i + 1,
@@ -57,7 +59,7 @@ const rule: Rule = {
         });
       }
 
-      if (MATH_RANDOM_PATTERN.test(line)) {
+      if (MATH_RANDOM_PATTERN.test(codeOnly)) {
         const surroundingLines = context.lines
           .slice(Math.max(0, i - 3), Math.min(context.lines.length, i + 4))
           .join(' ')

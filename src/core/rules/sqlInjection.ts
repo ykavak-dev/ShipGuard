@@ -1,6 +1,7 @@
 import type { Rule, ScanContext, Finding } from '../scanner';
+import { isCommentLine, stripInlineComments } from '../commentUtils';
 
-const QUERY_METHODS = ['query', 'execute', 'raw', 'prepare'];
+const QUERY_METHODS = ['query', 'execute', 'raw', 'prepare', 'findRaw', 'executeRaw', 'all', 'get'];
 
 const rule: Rule = {
   id: 'sql-injection',
@@ -16,13 +17,14 @@ const rule: Rule = {
       const line = context.lines[i];
       const trimmed = line.trim();
 
-      // Skip comments
-      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) continue;
+      // Skip comment lines
+      if (isCommentLine(trimmed)) continue;
+      const codeOnly = stripInlineComments(line);
 
       for (const method of QUERY_METHODS) {
         // Template literal with interpolation: .query(`...${...}...`)
         const templatePattern = new RegExp(`\\.${method}\\s*\\(\`[^\\)]*\\$\\{`);
-        if (templatePattern.test(line)) {
+        if (templatePattern.test(codeOnly)) {
           findings.push({
             filePath: context.filePath,
             line: i + 1,
@@ -36,7 +38,7 @@ const rule: Rule = {
 
         // String concatenation: .query("SELECT" + variable) or .query('INSERT' +
         const concatPattern = new RegExp(`\\.${method}\\s*\\(\\s*['"][^'"]*['"]\\s*\\+`);
-        if (concatPattern.test(line)) {
+        if (concatPattern.test(codeOnly)) {
           findings.push({
             filePath: context.filePath,
             line: i + 1,
