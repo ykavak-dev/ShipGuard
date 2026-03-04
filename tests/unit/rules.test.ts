@@ -46,6 +46,27 @@ describe('hardcoded-secrets rule', () => {
 
     expect(findings).toHaveLength(0);
   });
+
+  it('detects Google Cloud API key', () => {
+    const content = "const key = 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q';";
+    const ctx = createTestContext('app.ts', content);
+    const findings = secretsRule.check(ctx);
+    expect(findings.length).toBeGreaterThan(0);
+  });
+
+  it('detects MongoDB connection string with credentials', () => {
+    const content = "const uri = 'mongodb+srv://admin:password123@cluster.mongodb.net/db';";
+    const ctx = createTestContext('app.ts', content);
+    const findings = secretsRule.check(ctx);
+    expect(findings.length).toBeGreaterThan(0);
+  });
+
+  it('detects generic password assignment', () => {
+    const content = "const password = 'supersecret123';";
+    const ctx = createTestContext('app.ts', content);
+    const findings = secretsRule.check(ctx);
+    expect(findings.length).toBeGreaterThan(0);
+  });
 });
 
 // ─── docker-expose-postgres ──────────────────────────────────────────
