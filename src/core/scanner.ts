@@ -78,11 +78,7 @@ const IGNORE_PATTERNS = [
   '**/coverage/**',
   '**/demo-examples/**',
   '**/src/core/rules/**',
-  '**/src/core/report/**',
-  '**/tests/**',
-  '**/__tests__/**',
-  '**/*.test.*',
-  '**/*.spec.*',
+  '**/tests/fixtures/**',
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
