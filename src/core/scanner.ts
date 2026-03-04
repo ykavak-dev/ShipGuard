@@ -301,15 +301,12 @@ export async function scanProject(rootPath: string): Promise<ScanResult> {
   // Process successfully read files
   const validFiles: { filePath: string; content: string }[] = [];
   let filesSkipped = 0;
-  let filesWithErrors = 0;
-
   for (const result of fileReadResults) {
     if (result.success) {
       validFiles.push({ filePath: result.filePath, content: result.content });
     } else {
       filesSkipped++;
       if ('reason' in result && result.reason === 'read_error') {
-        filesWithErrors++;
         scanErrors.push({ filePath: result.filePath, error: result.error || 'Unknown error' });
       }
     }
