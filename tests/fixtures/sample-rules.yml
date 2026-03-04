@@ -1,0 +1,14 @@
+rules:
+  - id: "test-no-todo"
+    pattern: "//\\s*TODO"
+    severity: low
+    applicableTo:
+      - ".ts"
+      - ".js"
+
+  - id: "test-no-console-error"
+    pattern: "console\\.error"
+    severity: low
+    applicableTo:
+      - ".ts"
+      - ".js"

@@ -1,0 +1,24 @@
+rules:
+  - id: "test-no-todo"
+    name: "No TODO Comments"
+    description: "Detects TODO comments that should be resolved before shipping"
+    category: "code-quality"
+    severity: low
+    applicableTo:
+      - ".ts"
+      - ".js"
+    patterns:
+      - regex: "//\\s*TODO"
+        message: "Found TODO comment: {match}"
+
+  - id: "test-no-console-error"
+    name: "No console.error"
+    description: "Detects console.error calls that may leak information"
+    category: "logging"
+    severity: low
+    applicableTo:
+      - ".ts"
+      - ".js"
+    patterns:
+      - regex: "console\\.error"
+        message: "Found console.error call: {match}"
