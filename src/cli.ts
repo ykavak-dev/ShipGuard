@@ -28,6 +28,8 @@ import type { ShipGuardConfig } from './config';
 
 import * as fs from 'fs';
 import * as path from 'path';
+const { resolveSafePath } =
+  require('./core/pathValidation') as typeof import('./core/pathValidation');
 
 const program = new Command();
 
@@ -157,7 +159,22 @@ program
         const html = generateHtmlReport(result, score, threshold, rules);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         const outputPath = options.output || `shipguard-report-${timestamp}.html`;
-        fs.writeFileSync(outputPath, html, 'utf-8');
+
+        // Validate output path to prevent path traversal
+        let safeOutputPath: string;
+        try {
+          safeOutputPath = resolveSafePath(process.cwd(), outputPath);
+        } catch (err) {
+          console.error(
+            error(
+              `Output path validation failed: ${err instanceof Error ? err.message : String(err)}`
+            )
+          );
+          process.exit(1);
+        }
+
+        fs.writeFileSync(safeOutputPath, html, 'utf-8');
+        fs.chmodSync(safeOutputPath, 0o600);
         console.log(success(`HTML report written to ${outputPath}`));
         process.exit(passed ? 0 : 1);
       }
@@ -459,7 +476,12 @@ configCmd
         return { provider: v as 'claude' | 'openai' | 'ollama' };
       },
       model: (v) => ({ model: v }),
-      'api-key': (v) => ({ apiKey: v }),
+      'api-key': (v) => {
+        console.error(
+          '[shipguard] WARNING: Passing API keys via CLI arguments is insecure (visible in process listings). Use SHIPGUARD_API_KEY environment variable or .shipguardrc.json instead.'
+        );
+        return { apiKey: v };
+      },
       threshold: (v) => {
         const n = parseInt(v, 10);
         if (isNaN(n) || n < 0 || n > 100) {

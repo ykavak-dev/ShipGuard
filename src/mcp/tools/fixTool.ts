@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import { z } from 'zod';
 import { loadRules, shouldApplyRule } from '../../core/scanner';
 import { generateFixes, generatePatch, applyFix } from '../../core/fixEngine';
+import { resolveSafePath, isSymlink } from '../../core/pathValidation';
 import type { Finding, ScanContext } from '../../core/scanner';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
@@ -18,7 +19,36 @@ export function registerFixTool(server: McpServer): void {
     },
     async ({ findingId, filePath, autoApply }) => {
       try {
-        if (!fs.existsSync(filePath)) {
+        // Path traversal validation
+        const rootPath = process.env.SHIPGUARD_ROOT || process.cwd();
+        let resolvedPath: string;
+        try {
+          resolvedPath = resolveSafePath(rootPath, filePath);
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Path validation failed: ${err instanceof Error ? err.message : String(err)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (isSymlink(resolvedPath)) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Path validation failed: "${filePath}" is a symbolic link`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (!fs.existsSync(resolvedPath)) {
           return {
             content: [{ type: 'text' as const, text: `File not found: ${filePath}` }],
             isError: true,
@@ -26,9 +56,8 @@ export function registerFixTool(server: McpServer): void {
         }
 
         // Run the specific rule on the file to get actual findings
-        const content = fs.readFileSync(filePath, 'utf-8');
+        const content = fs.readFileSync(resolvedPath, 'utf-8');
         const lines = content.split('\n');
-        const rootPath = process.env.SHIPGUARD_ROOT || process.cwd();
         const context: ScanContext = {
           rootPath,
           filePath,

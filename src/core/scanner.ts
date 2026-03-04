@@ -130,7 +130,20 @@ async function loadRules(): Promise<Rule[]> {
     rules.push(yamlRule);
   }
 
-  return rules;
+  // Deduplicate rules by ID (handles duplicate YAML rules or duplicate TS rules)
+  const ruleIds = new Set<string>();
+  const deduped: Rule[] = [];
+  for (const rule of rules) {
+    if (ruleIds.has(rule.id)) {
+      console.error(
+        `[shipguard] Duplicate rule ID "${rule.id}" detected, keeping first occurrence`
+      );
+      continue;
+    }
+    ruleIds.add(rule.id);
+    deduped.push(rule);
+  }
+  return deduped;
 }
 
 function isValidRule(obj: unknown): obj is Rule {
@@ -163,19 +176,24 @@ type FileReadResult =
   | {
       success: false;
       filePath: string;
-      reason: 'not_found' | 'too_large' | 'not_file' | 'read_error';
+      reason: 'not_found' | 'too_large' | 'not_file' | 'symlink' | 'read_error';
       error?: string;
     };
 
 async function readFileWithResult(filePath: string): Promise<FileReadResult> {
   try {
-    const stats = await fs.stat(filePath);
+    // Use lstat to detect symlinks without following them (CWE-59)
+    const lstats = await fs.lstat(filePath);
 
-    if (!stats.isFile()) {
+    if (lstats.isSymbolicLink()) {
+      return { success: false, filePath, reason: 'symlink' };
+    }
+
+    if (!lstats.isFile()) {
       return { success: false, filePath, reason: 'not_file' };
     }
 
-    if (stats.size > MAX_FILE_SIZE) {
+    if (lstats.size > MAX_FILE_SIZE) {
       return { success: false, filePath, reason: 'too_large' };
     }
 

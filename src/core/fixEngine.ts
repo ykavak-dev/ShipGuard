@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Finding } from './scanner';
+import { resolveSafePath } from './pathValidation';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Types
@@ -350,17 +351,26 @@ export async function generateFixes(
 }
 
 export function applyFix(rootPath: string, fix: FixSuggestion): void {
-  const fullPath = path.join(rootPath, fix.filePath);
+  // Validate path to prevent path traversal attacks
+  let safePath: string;
+  try {
+    safePath = resolveSafePath(rootPath, fix.filePath);
+  } catch (err) {
+    console.error(
+      `Skipping fix for ${fix.filePath}: ${err instanceof Error ? err.message : String(err)}`
+    );
+    return;
+  }
 
   if (fix.ruleId === 'env-missing-example') {
     const content = extractNewFileContent(fix.patch);
-    fs.writeFileSync(fullPath, content, 'utf-8');
+    fs.writeFileSync(safePath, content, 'utf-8');
     return;
   }
 
   if (fix.ruleId === 'logging-migration-note') {
     const content = extractNewFileContent(fix.patch);
-    fs.writeFileSync(fullPath, content, 'utf-8');
+    fs.writeFileSync(safePath, content, 'utf-8');
     return;
   }
 

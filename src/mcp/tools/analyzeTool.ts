@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { z } from 'zod';
 import { loadRules, shouldApplyRule } from '../../core/scanner';
+import { resolveSafePath, isSymlink } from '../../core/pathValidation';
 import type { Finding, ScanContext } from '../../core/scanner';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
@@ -20,14 +21,43 @@ export function registerAnalyzeTool(server: McpServer): void {
     },
     async ({ filePath, rules: ruleIds }) => {
       try {
-        if (!fs.existsSync(filePath)) {
+        // Path traversal validation
+        const basePath = process.env.SHIPGUARD_ROOT || process.cwd();
+        let resolvedPath: string;
+        try {
+          resolvedPath = resolveSafePath(basePath, filePath);
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Path validation failed: ${err instanceof Error ? err.message : String(err)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (isSymlink(resolvedPath)) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Path validation failed: "${filePath}" is a symbolic link`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (!fs.existsSync(resolvedPath)) {
           return {
             content: [{ type: 'text' as const, text: `File not found: ${filePath}` }],
             isError: true,
           };
         }
 
-        const content = fs.readFileSync(filePath, 'utf-8');
+        const content = fs.readFileSync(resolvedPath, 'utf-8');
         const lines = content.split('\n');
         const context: ScanContext = {
           rootPath: path.dirname(filePath),
