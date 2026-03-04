@@ -75,8 +75,14 @@ const IGNORE_PATTERNS = [
   '**/dist/**',
   '**/build/**',
   '**/.git/**',
+  '**/coverage/**',
   '**/demo-examples/**',
   '**/src/core/rules/**',
+  '**/src/core/report/**',
+  '**/tests/**',
+  '**/__tests__/**',
+  '**/*.test.*',
+  '**/*.spec.*',
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
