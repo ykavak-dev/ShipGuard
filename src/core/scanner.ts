@@ -1,6 +1,7 @@
 import { glob } from 'fast-glob';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { loadYamlRules } from './yamlRuleLoader';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Types
@@ -62,8 +63,11 @@ interface ScanError {
 const GLOB_PATTERNS = [
   '**/*.ts',
   '**/*.js',
+  '**/*.jsx',
+  '**/*.tsx',
   '**/.env',
   '**/Dockerfile',
+  '**/package.json',
 ];
 
 const IGNORE_PATTERNS = [
@@ -85,6 +89,7 @@ async function loadRules(): Promise<Rule[]> {
   const rules: Rule[] = [];
   const rulesDir = path.join(__dirname, 'rules');
 
+  // 1. Load TypeScript rules
   try {
     const ruleFiles = await glob('*.js', {
       cwd: rulesDir,
@@ -97,8 +102,7 @@ async function loadRules(): Promise<Rule[]> {
         const ruleModule = await import(file);
         const rule = ruleModule.default || ruleModule.rule || ruleModule;
         return isValidRule(rule) ? rule : null;
-      } catch (error) {
-        // Silently skip invalid rule files
+      } catch {
         return null;
       }
     });
@@ -107,6 +111,18 @@ async function loadRules(): Promise<Rule[]> {
     rules.push(...loadedRules.filter((r): r is Rule => r !== null));
   } catch {
     // Rules directory may not exist yet
+  }
+
+  // 2. Load YAML rules
+  const tsRuleIds = new Set(rules.map(r => r.id));
+  const yamlRules = await loadYamlRules();
+
+  for (const yamlRule of yamlRules) {
+    if (tsRuleIds.has(yamlRule.id)) {
+      console.error(`[shipguard] YAML rule "${yamlRule.id}" conflicts with built-in rule, skipping`);
+      continue;
+    }
+    rules.push(yamlRule);
   }
 
   return rules;
