@@ -37,11 +37,7 @@ export function registerScanTool(server: McpServer, cache: ScanCache): void {
           passed,
           threshold,
           summary: countResult,
-          findings: [
-            ...result.critical,
-            ...result.medium,
-            ...result.low,
-          ],
+          findings: [...result.critical, ...result.medium, ...result.low],
           metadata: result.metadata,
         };
 
@@ -50,7 +46,12 @@ export function registerScanTool(server: McpServer, cache: ScanCache): void {
         };
       } catch (err) {
         return {
-          content: [{ type: 'text' as const, text: `Scan failed: ${err instanceof Error ? err.message : String(err)}` }],
+          content: [
+            {
+              type: 'text' as const,
+              text: `Scan failed: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
           isError: true,
         };
       }

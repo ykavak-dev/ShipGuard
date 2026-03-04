@@ -17,11 +17,13 @@ export function registerConfigResource(server: McpServer): void {
       };
 
       return {
-        contents: [{
-          uri: uri.href,
-          mimeType: 'application/json',
-          text: JSON.stringify(response, null, 2),
-        }],
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: 'application/json',
+            text: JSON.stringify(response, null, 2),
+          },
+        ],
       };
     }
   );

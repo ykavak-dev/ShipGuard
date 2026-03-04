@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const { Command } = require("commander") as typeof import("commander");
-const { scanProject } = require("./core/scanner") as typeof import("./core/scanner");
-const { calculateScore } = require("./core/scoring") as typeof import("./core/scoring");
+const { Command } = require('commander') as typeof import('commander');
+const { scanProject } = require('./core/scanner') as typeof import('./core/scanner');
+const { calculateScore } = require('./core/scoring') as typeof import('./core/scoring');
 const {
   printReport,
   printDetailedReport,
@@ -15,19 +15,16 @@ const {
   divider,
   generateSarif,
   generateHtmlReport,
-} = require("./core/report") as typeof import("./core/report");
-const { loadRules: loadAllRules } = require("./core/scanner") as typeof import("./core/scanner");
-const { generatePatch, generateFixes, applyFix } = require("./core/fixEngine") as typeof import("./core/fixEngine");
-const { createProvider } = require("./ai/providerFactory") as typeof import("./ai/providerFactory");
-const {
-  loadConfig,
-  saveConfig,
-  maskApiKey,
-} = require("./config") as typeof import("./config");
+} = require('./core/report') as typeof import('./core/report');
+const { loadRules: loadAllRules } = require('./core/scanner') as typeof import('./core/scanner');
+const { generatePatch, generateFixes, applyFix } =
+  require('./core/fixEngine') as typeof import('./core/fixEngine');
+const { createProvider } = require('./ai/providerFactory') as typeof import('./ai/providerFactory');
+const { loadConfig, saveConfig, maskApiKey } = require('./config') as typeof import('./config');
 
-import type { FixSuggestion } from "./core/fixEngine";
-import type { ScanResult as ScannerScanResult, Rule } from "./core/scanner";
-import type { ShipGuardConfig } from "./config";
+import type { FixSuggestion } from './core/fixEngine';
+import type { ScanResult as ScannerScanResult, Rule } from './core/scanner';
+import type { ShipGuardConfig } from './config';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -35,9 +32,9 @@ import * as path from 'path';
 const program = new Command();
 
 program
-  .name("shipguard")
-  .description("ShipGuard — Security scanning CLI with multi-provider AI support")
-  .version("2.0.0");
+  .name('shipguard')
+  .description('ShipGuard — Security scanning CLI with multi-provider AI support')
+  .version('2.0.0');
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Helper: Build config from CLI options
@@ -82,7 +79,9 @@ function printVerboseConfig(config: ShipGuardConfig): void {
   console.log('');
 }
 
-function printTokenUsage(provider: { getTokenUsage: () => { input: number; output: number; cost: number } }): void {
+function printTokenUsage(provider: {
+  getTokenUsage: () => { input: number; output: number; cost: number };
+}): void {
   const usage = provider.getTokenUsage();
   if (usage.input > 0 || usage.output > 0) {
     console.log(info(`Token usage: ${usage.input} input, ${usage.output} output`));
@@ -94,16 +93,16 @@ function printTokenUsage(provider: { getTokenUsage: () => { input: number; outpu
 // ═════════════════════════════════════════════════════════════════════════════
 
 program
-  .command("scan")
-  .description("Scan the project for security issues")
-  .option("--json", "Output raw JSON report only")
-  .option("--format <type>", "Output format: terminal, json, sarif, html (default: terminal)")
-  .option("--output <path>", "Output file path (used with --format html)")
-  .option("--threshold <number>", "Minimum acceptable risk score (fails if below)", parseInt)
-  .option("--provider <provider>", "AI provider (claude, openai, ollama)")
-  .option("--model <model-id>", "Model to use")
-  .option("--stream", "Enable streaming output")
-  .option("--verbose", "Show detailed config and token usage")
+  .command('scan')
+  .description('Scan the project for security issues')
+  .option('--json', 'Output raw JSON report only')
+  .option('--format <type>', 'Output format: terminal, json, sarif, html (default: terminal)')
+  .option('--output <path>', 'Output file path (used with --format html)')
+  .option('--threshold <number>', 'Minimum acceptable risk score (fails if below)', parseInt)
+  .option('--provider <provider>', 'AI provider (claude, openai, ollama)')
+  .option('--model <model-id>', 'Model to use')
+  .option('--stream', 'Enable streaming output')
+  .option('--verbose', 'Show detailed config and token usage')
   .action(async (options: CommonOptions) => {
     const config = buildConfig(options);
     const rootPath = process.cwd();
@@ -166,9 +165,9 @@ program
       // Terminal output (default)
       if (config.verbose) printVerboseConfig(config);
 
-      const spinner = createSpinner("Scanning project files...");
+      const spinner = createSpinner('Scanning project files...');
       spinner.start();
-      spinner.succeed(success("Scan completed"));
+      spinner.succeed(success('Scan completed'));
 
       printReport(countResult, score, result.metadata);
 
@@ -185,7 +184,7 @@ program
       if (format === 'json' || format === 'sarif') {
         console.log(JSON.stringify({ error: String(err) }, null, 2));
       } else {
-        console.error(error("Scan failed"), err);
+        console.error(error('Scan failed'), err);
       }
       process.exit(1);
     }
@@ -196,13 +195,13 @@ program
 // ═════════════════════════════════════════════════════════════════════════════
 
 program
-  .command("ai-review")
-  .description("Scan project and get AI-powered security review")
-  .option("--json", "Output raw JSON report only")
-  .option("--provider <provider>", "AI provider (claude, openai, ollama)")
-  .option("--model <model-id>", "Model to use")
-  .option("--stream", "Enable streaming output")
-  .option("--verbose", "Show detailed config and token usage")
+  .command('ai-review')
+  .description('Scan project and get AI-powered security review')
+  .option('--json', 'Output raw JSON report only')
+  .option('--provider <provider>', 'AI provider (claude, openai, ollama)')
+  .option('--model <model-id>', 'Model to use')
+  .option('--stream', 'Enable streaming output')
+  .option('--verbose', 'Show detailed config and token usage')
   .action(async (options: CommonOptions) => {
     const config = buildConfig(options);
     const rootPath = process.cwd();
@@ -227,13 +226,17 @@ program
       let aiResult;
 
       if (config.stream && !options.json) {
-        const scanSpinner = createSpinner("Scanning project files...");
+        const scanSpinner = createSpinner('Scanning project files...');
         scanSpinner.start();
-        scanSpinner.succeed(success(`Found ${countResult.critical} critical, ${countResult.medium} medium, ${countResult.low} low`));
+        scanSpinner.succeed(
+          success(
+            `Found ${countResult.critical} critical, ${countResult.medium} medium, ${countResult.low} low`
+          )
+        );
 
-        const streamSpinner = createSpinner("Streaming AI security review...");
+        const streamSpinner = createSpinner('Streaming AI security review...');
         streamSpinner.start();
-        streamSpinner.succeed(success("Streaming response:"));
+        streamSpinner.succeed(success('Streaming response:'));
         console.log(divider());
 
         const prompt = `Analyze these security scan results and provide:
@@ -253,16 +256,20 @@ ${JSON.stringify(result, null, 2)}`;
         return;
       }
 
-      const scanSpinner = createSpinner("Scanning project files...");
+      const scanSpinner = createSpinner('Scanning project files...');
       scanSpinner.start();
-      scanSpinner.succeed(success(`Found ${countResult.critical} critical, ${countResult.medium} medium, ${countResult.low} low`));
+      scanSpinner.succeed(
+        success(
+          `Found ${countResult.critical} critical, ${countResult.medium} medium, ${countResult.low} low`
+        )
+      );
 
-      const aiSpinner = createSpinner("Requesting AI security review...");
+      const aiSpinner = createSpinner('Requesting AI security review...');
       aiSpinner.start();
 
       aiResult = await provider.reviewFindings(result);
 
-      aiSpinner.succeed(success("AI review completed"));
+      aiSpinner.succeed(success('AI review completed'));
 
       if (options.json) {
         const jsonOutput = {
@@ -279,18 +286,14 @@ ${JSON.stringify(result, null, 2)}`;
       }
 
       console.log(divider());
-      printAIReview(
-        aiResult.prioritizedRisks,
-        aiResult.quickFixes,
-        aiResult.shipReadiness
-      );
+      printAIReview(aiResult.prioritizedRisks, aiResult.quickFixes, aiResult.shipReadiness);
 
       if (config.verbose) printTokenUsage(provider);
     } catch (err) {
       if (options.json) {
         console.log(JSON.stringify({ error: String(err) }, null, 2));
       } else {
-        console.error(error("Operation failed"), err);
+        console.error(error('Operation failed'), err);
       }
       process.exit(1);
     }
@@ -301,163 +304,163 @@ ${JSON.stringify(result, null, 2)}`;
 // ═════════════════════════════════════════════════════════════════════════════
 
 program
-  .command("fix")
-  .description("Generate fix patches for detected issues")
-  .option("--apply", "Apply the generated patches to files")
-  .option("--json", "Output raw JSON report only")
-  .option("--provider <provider>", "AI provider (claude, openai, ollama)")
-  .option("--model <model-id>", "Model to use")
-  .action(async (options: { apply?: boolean; json?: boolean; provider?: string; model?: string }) => {
-    const config = buildConfig(options);
-    const rootPath = process.cwd();
+  .command('fix')
+  .description('Generate fix patches for detected issues')
+  .option('--apply', 'Apply the generated patches to files')
+  .option('--json', 'Output raw JSON report only')
+  .option('--provider <provider>', 'AI provider (claude, openai, ollama)')
+  .option('--model <model-id>', 'Model to use')
+  .action(
+    async (options: { apply?: boolean; json?: boolean; provider?: string; model?: string }) => {
+      const config = buildConfig(options);
+      const rootPath = process.cwd();
 
-    try {
-      const result: ScannerScanResult = await scanProject(rootPath);
+      try {
+        const result: ScannerScanResult = await scanProject(rootPath);
 
-      // Collect metadata for fix engine
-      const consoleLogCounts = new Map<string, number>();
-      const dockerFilesWithPostgres: string[] = [];
+        // Collect metadata for fix engine
+        const consoleLogCounts = new Map<string, number>();
+        const dockerFilesWithPostgres: string[] = [];
 
-      for (const finding of [...result.critical, ...result.medium, ...result.low]) {
-        if (finding.ruleId === 'console-log-excessive' || finding.ruleId === 'console-log') {
-          const match = finding.message.match(/Found (\d+) console\.log/);
-          const logCount = match ? parseInt(match[1], 10) : 1;
-          consoleLogCounts.set(finding.filePath, logCount);
+        for (const finding of [...result.critical, ...result.medium, ...result.low]) {
+          if (finding.ruleId === 'console-log-excessive' || finding.ruleId === 'console-log') {
+            const match = finding.message.match(/Found (\d+) console\.log/);
+            const logCount = match ? parseInt(match[1], 10) : 1;
+            consoleLogCounts.set(finding.filePath, logCount);
+          }
+          if (finding.ruleId === 'docker-expose-postgres') {
+            dockerFilesWithPostgres.push(finding.filePath);
+          }
         }
-        if (finding.ruleId === 'docker-expose-postgres') {
-          dockerFilesWithPostgres.push(finding.filePath);
-        }
-      }
 
-      const patch = await generatePatch(rootPath, {
-        critical: result.critical,
-        medium: result.medium,
-        low: result.low,
-        metadata: {
-          consoleLogCounts,
-          dockerFilesWithPostgres,
-        },
-      });
-
-      const suggestions = await generateFixes(rootPath, {
-        critical: result.critical,
-        medium: result.medium,
-        low: result.low,
-        metadata: {
-          consoleLogCounts,
-          dockerFilesWithPostgres,
-        },
-      });
-
-      if (options.json) {
-        const jsonOutput = {
-          timestamp: new Date().toISOString(),
-          path: rootPath,
-          provider: config.provider,
-          summary: {
-            critical: result.critical.length,
-            medium: result.medium.length,
-            low: result.low.length,
+        const patch = await generatePatch(rootPath, {
+          critical: result.critical,
+          medium: result.medium,
+          low: result.low,
+          metadata: {
+            consoleLogCounts,
+            dockerFilesWithPostgres,
           },
-          patch,
-          suggestions: suggestions.map(s => ({
-            ruleId: s.ruleId,
-            filePath: s.filePath,
-            description: s.description,
-            canAutoApply: s.canAutoApply,
-          })),
-        };
-        console.log(JSON.stringify(jsonOutput, null, 2));
-        return;
-      }
+        });
 
-      if (config.verbose) printVerboseConfig(config);
+        const suggestions = await generateFixes(rootPath, {
+          critical: result.critical,
+          medium: result.medium,
+          low: result.low,
+          metadata: {
+            consoleLogCounts,
+            dockerFilesWithPostgres,
+          },
+        });
 
-      const scanSpinner = createSpinner("Scanning project for fixable issues...");
-      scanSpinner.start();
-      scanSpinner.succeed(success("Scan completed"));
+        if (options.json) {
+          const jsonOutput = {
+            timestamp: new Date().toISOString(),
+            path: rootPath,
+            provider: config.provider,
+            summary: {
+              critical: result.critical.length,
+              medium: result.medium.length,
+              low: result.low.length,
+            },
+            patch,
+            suggestions: suggestions.map((s) => ({
+              ruleId: s.ruleId,
+              filePath: s.filePath,
+              description: s.description,
+              canAutoApply: s.canAutoApply,
+            })),
+          };
+          console.log(JSON.stringify(jsonOutput, null, 2));
+          return;
+        }
 
-      const fixSpinner = createSpinner("Generating fix patches...");
-      fixSpinner.start();
-      fixSpinner.succeed(success("Patches generated"));
+        if (config.verbose) printVerboseConfig(config);
 
-      if (patch.trim() === '# No automated fixes available for current scan results') {
-        console.log('\n' + info('No automated fixes available for current scan results'));
-        return;
-      }
+        const scanSpinner = createSpinner('Scanning project for fixable issues...');
+        scanSpinner.start();
+        scanSpinner.succeed(success('Scan completed'));
 
-      console.log('\n' + divider());
-      console.log(' Generated Patch (unified diff format)');
-      console.log(divider());
-      console.log('\n' + patch);
-      console.log(divider());
+        const fixSpinner = createSpinner('Generating fix patches...');
+        fixSpinner.start();
+        fixSpinner.succeed(success('Patches generated'));
 
-      if (options.apply) {
-        const autoApplicable = suggestions.filter((s: FixSuggestion) => s.canAutoApply);
-        const manualOnly = suggestions.filter((s: FixSuggestion) => !s.canAutoApply);
+        if (patch.trim() === '# No automated fixes available for current scan results') {
+          console.log('\n' + info('No automated fixes available for current scan results'));
+          return;
+        }
 
-        console.log('\n' + info(`Found ${suggestions.length} fix suggestion(s):`));
-        console.log(`  ${success(`${autoApplicable.length} can be auto-applied`)}`);
-        console.log(`  ${warning(`${manualOnly.length} require manual review`)}`);
+        console.log('\n' + divider());
+        console.log(' Generated Patch (unified diff format)');
+        console.log(divider());
+        console.log('\n' + patch);
+        console.log(divider());
 
-        if (autoApplicable.length > 0) {
-          console.log('\n' + createSpinner("Applying auto-fixes...").text);
+        if (options.apply) {
+          const autoApplicable = suggestions.filter((s: FixSuggestion) => s.canAutoApply);
+          const manualOnly = suggestions.filter((s: FixSuggestion) => !s.canAutoApply);
 
-          for (const fix of autoApplicable) {
-            try {
-              await applyFix(rootPath, fix);
-              console.log(`  ${success(`Applied: ${fix.filePath}`)}`);
-            } catch (err) {
-              console.log(`  ${error(`Failed: ${fix.filePath} - ${err}`)}`);
+          console.log('\n' + info(`Found ${suggestions.length} fix suggestion(s):`));
+          console.log(`  ${success(`${autoApplicable.length} can be auto-applied`)}`);
+          console.log(`  ${warning(`${manualOnly.length} require manual review`)}`);
+
+          if (autoApplicable.length > 0) {
+            console.log('\n' + createSpinner('Applying auto-fixes...').text);
+
+            for (const fix of autoApplicable) {
+              try {
+                await applyFix(rootPath, fix);
+                console.log(`  ${success(`Applied: ${fix.filePath}`)}`);
+              } catch (err) {
+                console.log(`  ${error(`Failed: ${fix.filePath} - ${err}`)}`);
+              }
             }
           }
-        }
 
-        if (manualOnly.length > 0) {
-          console.log('\n' + warning('The following fixes require manual review:'));
-          for (const fix of manualOnly) {
-            console.log(`  - ${fix.filePath}: ${fix.description}`);
+          if (manualOnly.length > 0) {
+            console.log('\n' + warning('The following fixes require manual review:'));
+            for (const fix of manualOnly) {
+              console.log(`  - ${fix.filePath}: ${fix.description}`);
+            }
           }
-        }
 
-        console.log('\n' + success('Fix process completed'));
-      } else {
-        console.log('\n' + info('To apply these fixes, run: shipguard fix --apply'));
+          console.log('\n' + success('Fix process completed'));
+        } else {
+          console.log('\n' + info('To apply these fixes, run: shipguard fix --apply'));
+        }
+      } catch (err) {
+        if (options.json) {
+          console.log(JSON.stringify({ error: String(err) }, null, 2));
+        } else {
+          console.error(error('Fix generation failed'), err);
+        }
+        process.exit(1);
       }
-    } catch (err) {
-      if (options.json) {
-        console.log(JSON.stringify({ error: String(err) }, null, 2));
-      } else {
-        console.error(error("Fix generation failed"), err);
-      }
-      process.exit(1);
     }
-  });
+  );
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Command: config
 // ═════════════════════════════════════════════════════════════════════════════
 
-const configCmd = program
-  .command("config")
-  .description("Manage ShipGuard configuration");
+const configCmd = program.command('config').description('Manage ShipGuard configuration');
 
 configCmd
-  .command("set <key> <value>")
-  .description("Set a configuration value")
-  .option("--global", "Save to global config (~/.shipguardrc.json)")
+  .command('set <key> <value>')
+  .description('Set a configuration value')
+  .option('--global', 'Save to global config (~/.shipguardrc.json)')
   .action((key: string, value: string, opts: { global?: boolean }) => {
     const configMap: Record<string, (v: string) => Partial<ShipGuardConfig>> = {
-      'provider': (v) => {
+      provider: (v) => {
         if (v !== 'claude' && v !== 'openai' && v !== 'ollama') {
           console.error(error(`Invalid provider: ${v}. Use claude, openai, or ollama.`));
           process.exit(1);
         }
         return { provider: v as 'claude' | 'openai' | 'ollama' };
       },
-      'model': (v) => ({ model: v }),
+      model: (v) => ({ model: v }),
       'api-key': (v) => ({ apiKey: v }),
-      'threshold': (v) => {
+      threshold: (v) => {
         const n = parseInt(v, 10);
         if (isNaN(n) || n < 0 || n > 100) {
           console.error(error('Threshold must be a number between 0 and 100.'));
@@ -474,8 +477,8 @@ configCmd
         }
         return { mcpPort: n };
       },
-      'stream': (v) => ({ stream: v === 'true' }),
-      'verbose': (v) => ({ verbose: v === 'true' }),
+      stream: (v) => ({ stream: v === 'true' }),
+      verbose: (v) => ({ verbose: v === 'true' }),
     };
 
     const mapper = configMap[key];
@@ -491,19 +494,19 @@ configCmd
   });
 
 configCmd
-  .command("get <key>")
-  .description("Get a configuration value")
+  .command('get <key>')
+  .description('Get a configuration value')
   .action((key: string) => {
     const config = loadConfig();
     const keyMap: Record<string, () => string> = {
-      'provider': () => config.provider,
-      'model': () => config.model || '(not set)',
+      provider: () => config.provider,
+      model: () => config.model || '(not set)',
       'api-key': () => maskApiKey(config.apiKey),
-      'threshold': () => String(config.threshold),
+      threshold: () => String(config.threshold),
       'rules-dir': () => config.rulesDir || '(not set)',
       'mcp-port': () => String(config.mcpPort),
-      'stream': () => String(config.stream),
-      'verbose': () => String(config.verbose),
+      stream: () => String(config.stream),
+      verbose: () => String(config.verbose),
     };
 
     const getter = keyMap[key];
@@ -517,8 +520,8 @@ configCmd
   });
 
 configCmd
-  .command("list")
-  .description("Show all active configuration")
+  .command('list')
+  .description('Show all active configuration')
   .action(() => {
     const config = loadConfig();
     console.log(info('Active ShipGuard configuration:'));
@@ -533,8 +536,8 @@ configCmd
   });
 
 configCmd
-  .command("reset")
-  .description("Delete local config file")
+  .command('reset')
+  .description('Delete local config file')
   .action(() => {
     const localPath = path.join(process.cwd(), '.shipguardrc.json');
     try {
@@ -553,7 +556,7 @@ async function main(): Promise<void> {
   try {
     await program.parseAsync(process.argv);
   } catch (err) {
-    console.error(error("CLI error:"), err);
+    console.error(error('CLI error:'), err);
     process.exit(1);
   }
 }

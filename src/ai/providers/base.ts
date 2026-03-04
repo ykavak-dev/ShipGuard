@@ -31,15 +31,9 @@ export abstract class AIProvider {
 
   abstract reviewFindings(scanResults: ScanResult): Promise<AIReviewResult>;
 
-  abstract generateFix(
-    finding: Finding,
-    fileContent: string
-  ): Promise<AIFixSuggestion>;
+  abstract generateFix(finding: Finding, fileContent: string): Promise<AIFixSuggestion>;
 
-  abstract streamResponse(
-    prompt: string,
-    onChunk: (chunk: string) => void
-  ): Promise<string>;
+  abstract streamResponse(prompt: string, onChunk: (chunk: string) => void): Promise<string>;
 
   getTokenUsage(): TokenUsage {
     return { ...this.tokenUsage };

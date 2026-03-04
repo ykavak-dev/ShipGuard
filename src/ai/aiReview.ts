@@ -45,7 +45,7 @@ ${JSON.stringify(scanResults, null, 2)}`;
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model,
@@ -63,7 +63,7 @@ ${JSON.stringify(scanResults, null, 2)}`;
     throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
   }
 
-  const data = await response.json() as OpenAIResponse;
+  const data = (await response.json()) as OpenAIResponse;
   const content = data.choices[0]?.message?.content;
 
   if (!content) {
@@ -72,8 +72,7 @@ ${JSON.stringify(scanResults, null, 2)}`;
 
   // Extract JSON from potential markdown code blocks
   const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) ||
-                    content.match(/```\n?([\s\S]*?)\n?```/) ||
-                    [null, content];
+    content.match(/```\n?([\s\S]*?)\n?```/) || [null, content];
 
   const jsonContent = jsonMatch[1]?.trim() || content.trim();
 

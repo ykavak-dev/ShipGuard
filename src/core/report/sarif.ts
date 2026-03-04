@@ -1,15 +1,19 @@
 import type { ScanResult, Rule } from '../scanner';
 
-const SARIF_SCHEMA = 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json';
+const SARIF_SCHEMA =
+  'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json';
 const SARIF_VERSION = '2.1.0';
 
 type SarifLevel = 'error' | 'warning' | 'note';
 
 function toSarifLevel(severity: 'critical' | 'medium' | 'low'): SarifLevel {
   switch (severity) {
-    case 'critical': return 'error';
-    case 'medium': return 'warning';
-    case 'low': return 'note';
+    case 'critical':
+      return 'error';
+    case 'medium':
+      return 'warning';
+    case 'low':
+      return 'note';
   }
 }
 
@@ -18,11 +22,7 @@ function toUri(filePath: string): string {
 }
 
 export function generateSarif(scanResult: ScanResult, rules: Rule[]): object {
-  const allFindings = [
-    ...scanResult.critical,
-    ...scanResult.medium,
-    ...scanResult.low,
-  ];
+  const allFindings = [...scanResult.critical, ...scanResult.medium, ...scanResult.low];
 
   const ruleIndexMap = new Map<string, number>();
   const sarifRules = rules.map((rule, index) => {
@@ -40,7 +40,7 @@ export function generateSarif(scanResult: ScanResult, rules: Rule[]): object {
     };
   });
 
-  const results = allFindings.map(finding => {
+  const results = allFindings.map((finding) => {
     const result: Record<string, unknown> = {
       ruleId: finding.ruleId,
       level: toSarifLevel(finding.severity),

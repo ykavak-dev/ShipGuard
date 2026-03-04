@@ -117,12 +117,14 @@ async function loadRules(): Promise<Rule[]> {
   }
 
   // 2. Load YAML rules
-  const tsRuleIds = new Set(rules.map(r => r.id));
+  const tsRuleIds = new Set(rules.map((r) => r.id));
   const yamlRules = await loadYamlRules();
 
   for (const yamlRule of yamlRules) {
     if (tsRuleIds.has(yamlRule.id)) {
-      console.error(`[shipguard] YAML rule "${yamlRule.id}" conflicts with built-in rule, skipping`);
+      console.error(
+        `[shipguard] YAML rule "${yamlRule.id}" conflicts with built-in rule, skipping`
+      );
       continue;
     }
     rules.push(yamlRule);
@@ -135,15 +137,13 @@ function isValidRule(obj: unknown): obj is Rule {
   if (typeof obj !== 'object' || obj === null) return false;
   const rule = obj as Record<string, unknown>;
   return (
-    typeof rule.id === 'string' &&
-    typeof rule.name === 'string' &&
-    typeof rule.check === 'function'
+    typeof rule.id === 'string' && typeof rule.name === 'string' && typeof rule.check === 'function'
   );
 }
 
 function shouldApplyRule(rule: Rule, filePath: string): boolean {
   const normalizedPath = filePath.toLowerCase();
-  return rule.applicableTo.some(pattern => {
+  return rule.applicableTo.some((pattern) => {
     if (pattern.startsWith('.')) {
       return normalizedPath.endsWith(pattern.toLowerCase());
     }
@@ -160,29 +160,34 @@ function shouldApplyRule(rule: Rule, filePath: string): boolean {
 
 type FileReadResult =
   | { success: true; filePath: string; content: string }
-  | { success: false; filePath: string; reason: 'not_found' | 'too_large' | 'not_file' | 'read_error'; error?: string };
+  | {
+      success: false;
+      filePath: string;
+      reason: 'not_found' | 'too_large' | 'not_file' | 'read_error';
+      error?: string;
+    };
 
 async function readFileWithResult(filePath: string): Promise<FileReadResult> {
   try {
     const stats = await fs.stat(filePath);
-    
+
     if (!stats.isFile()) {
       return { success: false, filePath, reason: 'not_file' };
     }
-    
+
     if (stats.size > MAX_FILE_SIZE) {
       return { success: false, filePath, reason: 'too_large' };
     }
-    
+
     const content = await fs.readFile(filePath, 'utf-8');
     return { success: true, filePath, content };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    return { 
-      success: false, 
-      filePath, 
+    return {
+      success: false,
+      filePath,
       reason: 'read_error',
-      error: errorMsg 
+      error: errorMsg,
     };
   }
 }
@@ -246,13 +251,13 @@ async function processBatch<T, R>(
   concurrency: number
 ): Promise<R[]> {
   const results: R[] = [];
-  
+
   for (let i = 0; i < items.length; i += concurrency) {
     const batch = items.slice(i, i + concurrency);
     const batchResults = await Promise.all(batch.map(processor));
     results.push(...batchResults);
   }
-  
+
   return results;
 }
 
@@ -262,16 +267,16 @@ async function processBatch<T, R>(
 
 function categorizeFindings(findings: Finding[]): Pick<ScanResult, 'critical' | 'medium' | 'low'> {
   return {
-    critical: findings.filter(f => f.severity === 'critical'),
-    medium: findings.filter(f => f.severity === 'medium'),
-    low: findings.filter(f => f.severity === 'low'),
+    critical: findings.filter((f) => f.severity === 'critical'),
+    medium: findings.filter((f) => f.severity === 'medium'),
+    low: findings.filter((f) => f.severity === 'low'),
   };
 }
 
 export async function scanProject(rootPath: string): Promise<ScanResult> {
   const startedAt = new Date().toISOString();
   const startTime = performance.now();
-  
+
   const absoluteRoot = path.resolve(rootPath);
   const allFindings: Finding[] = [];
   const scanErrors: ScanError[] = [];

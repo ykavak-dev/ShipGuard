@@ -23,7 +23,7 @@ describe('loadYamlRules', () => {
     const rules = await loadYamlRules('/nonexistent-project-root');
     expect(rules.length).toBeGreaterThanOrEqual(2);
 
-    const ids = rules.map(r => r.id);
+    const ids = rules.map((r) => r.id);
     expect(ids).toContain('test-no-todo');
     expect(ids).toContain('test-no-console-error');
   });
@@ -32,7 +32,7 @@ describe('loadYamlRules', () => {
     process.env.SHIPGUARD_RULES_DIR = FIXTURES_DIR;
 
     const rules = await loadYamlRules('/nonexistent-project-root');
-    const todoRule = rules.find(r => r.id === 'test-no-todo');
+    const todoRule = rules.find((r) => r.id === 'test-no-todo');
     expect(todoRule).toBeDefined();
 
     const context = createTestContext('app.ts', '// TODO: fix this\nconst x = 1;');

@@ -14,13 +14,15 @@ const rule: Rule = {
     const examplePath = path.join(dir, '.env.example');
 
     if (!fs.existsSync(examplePath)) {
-      return [{
-        filePath: context.filePath,
-        severity: 'medium',
-        message: '.env file exists but .env.example template is missing',
-        ruleId: 'env-missing-example',
-        category: 'configuration',
-      }];
+      return [
+        {
+          filePath: context.filePath,
+          severity: 'medium',
+          message: '.env file exists but .env.example template is missing',
+          ruleId: 'env-missing-example',
+          category: 'configuration',
+        },
+      ];
     }
 
     return [];

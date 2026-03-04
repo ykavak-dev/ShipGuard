@@ -9,8 +9,8 @@ interface User {
 
 function getUserById(id: number): User | undefined {
   const users: User[] = [
-    { id: 1, name: "Alice", email: "alice@example.com" },
-    { id: 2, name: "Bob", email: "bob@example.com" },
+    { id: 1, name: 'Alice', email: 'alice@example.com' },
+    { id: 2, name: 'Bob', email: 'bob@example.com' },
   ];
   return users.find((user) => user.id === id);
 }

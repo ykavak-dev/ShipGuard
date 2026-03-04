@@ -37,11 +37,15 @@ export function registerFixTool(server: McpServer): void {
         };
 
         const allRules = await loadRules();
-        const matchingRule = allRules.find(r => r.id === findingId && shouldApplyRule(r, filePath));
+        const matchingRule = allRules.find(
+          (r) => r.id === findingId && shouldApplyRule(r, filePath)
+        );
 
         if (!matchingRule) {
           return {
-            content: [{ type: 'text' as const, text: `No rule '${findingId}' applicable to ${filePath}` }],
+            content: [
+              { type: 'text' as const, text: `No rule '${findingId}' applicable to ${filePath}` },
+            ],
             isError: true,
           };
         }
@@ -49,13 +53,17 @@ export function registerFixTool(server: McpServer): void {
         const findings = matchingRule.check(context);
         if (findings.length === 0) {
           return {
-            content: [{ type: 'text' as const, text: `No findings for rule '${findingId}' in ${filePath}` }],
+            content: [
+              { type: 'text' as const, text: `No findings for rule '${findingId}' in ${filePath}` },
+            ],
           };
         }
 
         // Categorize findings for fix engine
         const categorized: { critical: Finding[]; medium: Finding[]; low: Finding[] } = {
-          critical: [], medium: [], low: [],
+          critical: [],
+          medium: [],
+          low: [],
         };
         for (const f of findings) {
           categorized[f.severity].push(f);
@@ -84,16 +92,19 @@ export function registerFixTool(server: McpServer): void {
 
         let applied = false;
         if (autoApply && fixes.length > 0) {
-          for (const fix of fixes.filter(f => f.canAutoApply)) {
+          for (const fix of fixes.filter((f) => f.canAutoApply)) {
             applyFix(rootPath, fix);
             applied = true;
           }
         }
 
         const response = {
-          patch: patch.trim() === '# No automated fixes available for current scan results' ? null : patch,
+          patch:
+            patch.trim() === '# No automated fixes available for current scan results'
+              ? null
+              : patch,
           applied,
-          fixes: fixes.map(f => ({
+          fixes: fixes.map((f) => ({
             ruleId: f.ruleId,
             filePath: f.filePath,
             description: f.description,
@@ -106,7 +117,12 @@ export function registerFixTool(server: McpServer): void {
         };
       } catch (err) {
         return {
-          content: [{ type: 'text' as const, text: `Fix generation failed: ${err instanceof Error ? err.message : String(err)}` }],
+          content: [
+            {
+              type: 'text' as const,
+              text: `Fix generation failed: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
           isError: true,
         };
       }

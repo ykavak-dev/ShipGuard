@@ -11,11 +11,13 @@ export function registerHistoryResource(server: McpServer, cache: ScanCache): vo
     },
     async (uri) => {
       return {
-        contents: [{
-          uri: uri.href,
-          mimeType: 'application/json',
-          text: JSON.stringify(cache.history, null, 2),
-        }],
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: 'application/json',
+            text: JSON.stringify(cache.history, null, 2),
+          },
+        ],
       };
     }
   );

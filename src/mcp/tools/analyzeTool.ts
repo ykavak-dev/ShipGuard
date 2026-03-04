@@ -12,7 +12,10 @@ export function registerAnalyzeTool(server: McpServer): void {
       description: 'Perform deep security analysis on a single file',
       inputSchema: z.object({
         filePath: z.string().describe('Absolute path to the file to analyze'),
-        rules: z.array(z.string()).optional().describe('Specific rule IDs to apply (optional, defaults to all)'),
+        rules: z
+          .array(z.string())
+          .optional()
+          .describe('Specific rule IDs to apply (optional, defaults to all)'),
       }),
     },
     async ({ filePath, rules: ruleIds }) => {
@@ -34,10 +37,10 @@ export function registerAnalyzeTool(server: McpServer): void {
         };
 
         let applicableRules = await loadRules();
-        applicableRules = applicableRules.filter(r => shouldApplyRule(r, filePath));
+        applicableRules = applicableRules.filter((r) => shouldApplyRule(r, filePath));
 
         if (ruleIds && ruleIds.length > 0) {
-          applicableRules = applicableRules.filter(r => ruleIds.includes(r.id));
+          applicableRules = applicableRules.filter((r) => ruleIds.includes(r.id));
         }
 
         const findings: Finding[] = [];
@@ -47,7 +50,7 @@ export function registerAnalyzeTool(server: McpServer): void {
 
         const response = {
           filePath,
-          rulesApplied: applicableRules.map(r => r.id),
+          rulesApplied: applicableRules.map((r) => r.id),
           findingsCount: findings.length,
           findings,
         };
@@ -57,7 +60,12 @@ export function registerAnalyzeTool(server: McpServer): void {
         };
       } catch (err) {
         return {
-          content: [{ type: 'text' as const, text: `Analysis failed: ${err instanceof Error ? err.message : String(err)}` }],
+          content: [
+            {
+              type: 'text' as const,
+              text: `Analysis failed: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
           isError: true,
         };
       }

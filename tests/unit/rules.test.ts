@@ -31,11 +31,11 @@ describe('hardcoded-secrets rule', () => {
     const findings = secretsRule.check(ctx);
 
     expect(findings.length).toBeGreaterThanOrEqual(1);
-    expect(findings.every(f => f.ruleId === 'hardcoded-secrets')).toBe(true);
-    expect(findings.every(f => f.severity === 'critical')).toBe(true);
+    expect(findings.every((f) => f.ruleId === 'hardcoded-secrets')).toBe(true);
+    expect(findings.every((f) => f.severity === 'critical')).toBe(true);
 
     // Should detect the AKIA pattern from AKIAIOSFODNN7EXAMPLE
-    const awsFinding = findings.find(f => f.message.includes('AWS Access Key'));
+    const awsFinding = findings.find((f) => f.message.includes('AWS Access Key'));
     expect(awsFinding).toBeDefined();
   });
 
@@ -151,8 +151,8 @@ describe('sql-injection rule', () => {
     const findings = sqlInjectionRule.check(ctx);
 
     expect(findings.length).toBeGreaterThanOrEqual(1);
-    expect(findings.every(f => f.ruleId === 'sql-injection')).toBe(true);
-    expect(findings.every(f => f.severity === 'critical')).toBe(true);
+    expect(findings.every((f) => f.ruleId === 'sql-injection')).toBe(true);
+    expect(findings.every((f) => f.severity === 'critical')).toBe(true);
     expect(findings[0].message).toContain('template literal');
   });
 
@@ -177,10 +177,10 @@ describe('xss-vulnerable rule', () => {
     const findings = xssRule.check(ctx);
 
     expect(findings.length).toBeGreaterThanOrEqual(1);
-    expect(findings.every(f => f.ruleId === 'xss-vulnerable')).toBe(true);
-    expect(findings.every(f => f.severity === 'critical')).toBe(true);
+    expect(findings.every((f) => f.ruleId === 'xss-vulnerable')).toBe(true);
+    expect(findings.every((f) => f.severity === 'critical')).toBe(true);
 
-    const innerHtmlFinding = findings.find(f => f.message.includes('innerHTML'));
+    const innerHtmlFinding = findings.find((f) => f.message.includes('innerHTML'));
     expect(innerHtmlFinding).toBeDefined();
   });
 
@@ -205,22 +205,26 @@ describe('insecure-dependency rule', () => {
     const findings = insecureDependencyRule.check(ctx);
 
     expect(findings.length).toBeGreaterThanOrEqual(2);
-    expect(findings.every(f => f.ruleId === 'insecure-dependency')).toBe(true);
-    expect(findings.every(f => f.severity === 'critical')).toBe(true);
+    expect(findings.every((f) => f.ruleId === 'insecure-dependency')).toBe(true);
+    expect(findings.every((f) => f.severity === 'critical')).toBe(true);
 
-    const packageNames = findings.map(f => f.message);
-    expect(packageNames.some(m => m.includes('event-stream'))).toBe(true);
-    expect(packageNames.some(m => m.includes('colors'))).toBe(true);
+    const packageNames = findings.map((f) => f.message);
+    expect(packageNames.some((m) => m.includes('event-stream'))).toBe(true);
+    expect(packageNames.some((m) => m.includes('colors'))).toBe(true);
   });
 
   it('does not flag safe dependencies', () => {
-    const content = JSON.stringify({
-      name: 'safe-app',
-      dependencies: {
-        express: '^4.18.0',
-        lodash: '^4.17.21',
+    const content = JSON.stringify(
+      {
+        name: 'safe-app',
+        dependencies: {
+          express: '^4.18.0',
+          lodash: '^4.17.21',
+        },
       },
-    }, null, 2);
+      null,
+      2
+    );
     const ctx = createTestContext('package.json', content);
     const findings = insecureDependencyRule.check(ctx);
 
@@ -236,10 +240,10 @@ describe('weak-crypto rule', () => {
     const findings = weakCryptoRule.check(ctx);
 
     expect(findings.length).toBeGreaterThanOrEqual(1);
-    expect(findings.every(f => f.ruleId === 'weak-crypto')).toBe(true);
-    expect(findings.every(f => f.severity === 'medium')).toBe(true);
+    expect(findings.every((f) => f.ruleId === 'weak-crypto')).toBe(true);
+    expect(findings.every((f) => f.severity === 'medium')).toBe(true);
 
-    const md5Finding = findings.find(f => f.message.includes('MD5'));
+    const md5Finding = findings.find((f) => f.message.includes('MD5'));
     expect(md5Finding).toBeDefined();
   });
 
@@ -367,10 +371,10 @@ describe('cors-permissive rule', () => {
     const findings = corsPermissiveRule.check(ctx);
 
     expect(findings.length).toBeGreaterThanOrEqual(1);
-    expect(findings.every(f => f.ruleId === 'cors-permissive')).toBe(true);
-    expect(findings.every(f => f.severity === 'medium')).toBe(true);
+    expect(findings.every((f) => f.ruleId === 'cors-permissive')).toBe(true);
+    expect(findings.every((f) => f.severity === 'medium')).toBe(true);
 
-    const corsFinding = findings.find(f => f.message.includes('cors()'));
+    const corsFinding = findings.find((f) => f.message.includes('cors()'));
     expect(corsFinding).toBeDefined();
   });
 
@@ -405,10 +409,12 @@ app.get('/debug', (req, res) => {
     const findings = errorInfoLeakRule.check(ctx);
 
     expect(findings.length).toBeGreaterThanOrEqual(1);
-    expect(findings.every(f => f.ruleId === 'error-info-leak')).toBe(true);
-    expect(findings.every(f => f.severity === 'low')).toBe(true);
+    expect(findings.every((f) => f.ruleId === 'error-info-leak')).toBe(true);
+    expect(findings.every((f) => f.severity === 'low')).toBe(true);
 
-    const stackFinding = findings.find(f => f.message.includes('stack trace') || f.message.includes('error'));
+    const stackFinding = findings.find(
+      (f) => f.message.includes('stack trace') || f.message.includes('error')
+    );
     expect(stackFinding).toBeDefined();
   });
 

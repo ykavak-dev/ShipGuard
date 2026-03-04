@@ -20,7 +20,8 @@ const rule: Rule = {
             filePath: context.filePath,
             line: i + 1,
             severity: 'medium',
-            message: 'Dockerfile exposes PostgreSQL port 5432 - use internal Docker networking instead',
+            message:
+              'Dockerfile exposes PostgreSQL port 5432 - use internal Docker networking instead',
             ruleId: 'docker-expose-postgres',
             category: 'docker',
           });

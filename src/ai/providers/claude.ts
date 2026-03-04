@@ -65,11 +65,7 @@ export class ClaudeProvider extends AIProvider {
   // ═══════════════════════════════════════════════════════════════════════════
 
   async reviewFindings(scanResults: ScanResult): Promise<AIReviewResult> {
-    const allFindings = [
-      ...scanResults.critical,
-      ...scanResults.medium,
-      ...scanResults.low,
-    ];
+    const allFindings = [...scanResults.critical, ...scanResults.medium, ...scanResults.low];
 
     if (allFindings.length === 0) {
       return {
@@ -86,9 +82,7 @@ export class ClaudeProvider extends AIProvider {
     const prioritization = await this.prioritizeFindings(allFindings, analyses);
 
     // Map to AIReviewResult format
-    const topRankings = prioritization.rankings
-      .sort((a, b) => a.priority - b.priority)
-      .slice(0, 3);
+    const topRankings = prioritization.rankings.sort((a, b) => a.priority - b.priority).slice(0, 3);
 
     return {
       prioritizedRisks: topRankings.map((r) => {
@@ -110,10 +104,7 @@ export class ClaudeProvider extends AIProvider {
   // Public: analyzeFinding (single finding detailed analysis)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async analyzeFinding(
-    finding: Finding,
-    fileContent: string
-  ): Promise<AnalyzeFindingResult> {
+  async analyzeFinding(finding: Finding, fileContent: string): Promise<AnalyzeFindingResult> {
     const fewShot = getAnalyzeFindingExamples();
 
     const userPrompt = `Analyze this finding:
@@ -131,10 +122,7 @@ ${fileContent}
         system: SECURITY_ANALYST_PROMPT,
         tools: [ANALYZE_FINDING_TOOL],
         tool_choice: { type: 'tool', name: 'analyze_finding' },
-        messages: [
-          ...fewShot,
-          { role: 'user', content: userPrompt },
-        ],
+        messages: [...fewShot, { role: 'user', content: userPrompt }],
       })
     );
 
@@ -146,10 +134,7 @@ ${fileContent}
   // Public: generateFix
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async generateFix(
-    finding: Finding,
-    fileContent: string
-  ): Promise<AIFixSuggestion> {
+  async generateFix(finding: Finding, fileContent: string): Promise<AIFixSuggestion> {
     const fewShot = getGenerateFixExamples();
 
     const userPrompt = `Generate a fix for this security finding.
@@ -174,10 +159,7 @@ ${fileContent}
         system: FIX_GENERATOR_PROMPT,
         tools: [GENERATE_FIX_TOOL],
         tool_choice: { type: 'tool', name: 'generate_fix' },
-        messages: [
-          ...fewShot,
-          { role: 'user', content: userPrompt },
-        ],
+        messages: [...fewShot, { role: 'user', content: userPrompt }],
       })
     );
 
@@ -197,10 +179,7 @@ ${fileContent}
   // Public: suggestRules
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async suggestRules(
-    findings: Finding[],
-    existingRules: string[]
-  ): Promise<SuggestRulesResult> {
+  async suggestRules(findings: Finding[], existingRules: string[]): Promise<SuggestRulesResult> {
     const userPrompt = `Based on these scan findings and the existing rule set, suggest new rules that would improve scanner coverage.
 
 Findings:
@@ -228,10 +207,7 @@ Existing Rules: ${JSON.stringify(existingRules)}`;
   // Public: streamResponse
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async streamResponse(
-    prompt: string,
-    onChunk: (chunk: string) => void
-  ): Promise<string> {
+  async streamResponse(prompt: string, onChunk: (chunk: string) => void): Promise<string> {
     const stream = this.client.messages.stream({
       model: this.model,
       max_tokens: STREAM_MAX_TOKENS,
@@ -244,11 +220,7 @@ Existing Rules: ${JSON.stringify(existingRules)}`;
 
     const finalMessage = await stream.finalMessage();
 
-    this.trackTokens(
-      finalMessage.usage.input_tokens,
-      finalMessage.usage.output_tokens,
-      0
-    );
+    this.trackTokens(finalMessage.usage.input_tokens, finalMessage.usage.output_tokens, 0);
 
     const textBlock = finalMessage.content.find(
       (block): block is Anthropic.TextBlock => block.type === 'text'
@@ -261,9 +233,7 @@ Existing Rules: ${JSON.stringify(existingRules)}`;
   // Private: Batch analyze all findings
   // ═══════════════════════════════════════════════════════════════════════════
 
-  private async analyzeAllFindings(
-    findings: Finding[]
-  ): Promise<AnalyzeFindingResult[]> {
+  private async analyzeAllFindings(findings: Finding[]): Promise<AnalyzeFindingResult[]> {
     const results: AnalyzeFindingResult[] = [];
 
     for (let i = 0; i < findings.length; i += ANALYZE_BATCH_SIZE) {
@@ -277,9 +247,7 @@ Existing Rules: ${JSON.stringify(existingRules)}`;
     return results;
   }
 
-  private async analyzeSingleFinding(
-    finding: Finding
-  ): Promise<AnalyzeFindingResult> {
+  private async analyzeSingleFinding(finding: Finding): Promise<AnalyzeFindingResult> {
     const userPrompt = `Analyze this finding:
 Finding: ${JSON.stringify(finding)}
 File Content: (not available for batch analysis)`;
@@ -339,10 +307,7 @@ ${JSON.stringify(findingsWithAnalysis, null, 2)}`;
   // Private: Extract tool result with fallback
   // ═══════════════════════════════════════════════════════════════════════════
 
-  private extractToolResult<T>(
-    response: Anthropic.Message,
-    expectedTool: string
-  ): T {
+  private extractToolResult<T>(response: Anthropic.Message, expectedTool: string): T {
     const toolBlock = response.content.find(
       (block): block is Anthropic.ToolUseBlock =>
         block.type === 'tool_use' && block.name === expectedTool
@@ -359,10 +324,8 @@ ${JSON.stringify(findingsWithAnalysis, null, 2)}`;
 
     if (textBlock?.text) {
       try {
-        const jsonMatch =
-          textBlock.text.match(/```json\n?([\s\S]*?)\n?```/) ||
-          textBlock.text.match(/```\n?([\s\S]*?)\n?```/) ||
-          [null, textBlock.text];
+        const jsonMatch = textBlock.text.match(/```json\n?([\s\S]*?)\n?```/) ||
+          textBlock.text.match(/```\n?([\s\S]*?)\n?```/) || [null, textBlock.text];
 
         const jsonContent = jsonMatch[1]?.trim() || textBlock.text.trim();
         return JSON.parse(jsonContent) as T;

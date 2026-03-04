@@ -48,7 +48,7 @@ export function registerReportTool(server: McpServer, cache: ScanCache): void {
               low: result.low.length,
               total: allFindings.length,
             },
-            topRisks: topRisks.map(f => ({
+            topRisks: topRisks.map((f) => ({
               ruleId: f.ruleId,
               severity: f.severity,
               message: f.message,
@@ -85,7 +85,12 @@ export function registerReportTool(server: McpServer, cache: ScanCache): void {
         };
       } catch (err) {
         return {
-          content: [{ type: 'text' as const, text: `Report failed: ${err instanceof Error ? err.message : String(err)}` }],
+          content: [
+            {
+              type: 'text' as const,
+              text: `Report failed: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
           isError: true,
         };
       }

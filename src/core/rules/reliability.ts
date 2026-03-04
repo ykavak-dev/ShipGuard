@@ -21,14 +21,16 @@ const rule: Rule = {
     }
 
     if (count > CONSOLE_LOG_THRESHOLD) {
-      return [{
-        filePath: context.filePath,
-        line: firstLine,
-        severity: 'low',
-        message: `Found ${count} console.log statements (threshold: ${CONSOLE_LOG_THRESHOLD}) - consider using a structured logger`,
-        ruleId: 'console-log-excessive',
-        category: 'reliability',
-      }];
+      return [
+        {
+          filePath: context.filePath,
+          line: firstLine,
+          severity: 'low',
+          message: `Found ${count} console.log statements (threshold: ${CONSOLE_LOG_THRESHOLD}) - consider using a structured logger`,
+          ruleId: 'console-log-excessive',
+          category: 'reliability',
+        },
+      ];
     }
 
     return [];

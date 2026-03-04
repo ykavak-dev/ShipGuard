@@ -30,7 +30,7 @@ function makeRule(overrides: Partial<Rule> = {}): Rule {
 function makeScanResult(
   critical: Finding[] = [],
   medium: Finding[] = [],
-  low: Finding[] = [],
+  low: Finding[] = []
 ): ScanResult {
   return {
     critical,
@@ -71,7 +71,7 @@ describe('generateHtmlReport', () => {
       makeScanResult([findings[0]], [findings[1]], [findings[2]]),
       70,
       80,
-      rules,
+      rules
     );
 
     // Total count is 3

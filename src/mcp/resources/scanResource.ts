@@ -12,11 +12,15 @@ export function registerScanResource(server: McpServer, cache: ScanCache): void 
     async (uri) => {
       if (!cache.lastResult) {
         return {
-          contents: [{
-            uri: uri.href,
-            mimeType: 'application/json',
-            text: JSON.stringify({ message: 'No scan results available. Run scan_repository first.' }),
-          }],
+          contents: [
+            {
+              uri: uri.href,
+              mimeType: 'application/json',
+              text: JSON.stringify({
+                message: 'No scan results available. Run scan_repository first.',
+              }),
+            },
+          ],
         };
       }
 
@@ -38,11 +42,13 @@ export function registerScanResource(server: McpServer, cache: ScanCache): void 
       };
 
       return {
-        contents: [{
-          uri: uri.href,
-          mimeType: 'application/json',
-          text: JSON.stringify(response, null, 2),
-        }],
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: 'application/json',
+            text: JSON.stringify(response, null, 2),
+          },
+        ],
       };
     }
   );

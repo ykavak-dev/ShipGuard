@@ -3,7 +3,8 @@ import type { Rule, ScanContext, Finding } from '../scanner';
 const XSS_PATTERNS: { pattern: RegExp; message: string }[] = [
   {
     pattern: /\.innerHTML\s*=/,
-    message: 'Direct innerHTML assignment is an XSS risk. Use textContent or a sanitization library.',
+    message:
+      'Direct innerHTML assignment is an XSS risk. Use textContent or a sanitization library.',
   },
   {
     pattern: /\.outerHTML\s*=/,

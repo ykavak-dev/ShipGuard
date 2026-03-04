@@ -16,10 +16,10 @@ export function registerRulesTool(server: McpServer): void {
         let rules = await loadRules();
 
         if (category) {
-          rules = rules.filter(r => r.category === category);
+          rules = rules.filter((r) => r.category === category);
         }
 
-        const response = rules.map(r => ({
+        const response = rules.map((r) => ({
           id: r.id,
           name: r.name,
           description: r.description,
@@ -33,7 +33,12 @@ export function registerRulesTool(server: McpServer): void {
         };
       } catch (err) {
         return {
-          content: [{ type: 'text' as const, text: `Failed to load rules: ${err instanceof Error ? err.message : String(err)}` }],
+          content: [
+            {
+              type: 'text' as const,
+              text: `Failed to load rules: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
           isError: true,
         };
       }

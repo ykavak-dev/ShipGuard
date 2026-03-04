@@ -63,7 +63,7 @@ describe('generateFixes', () => {
     expect(Array.isArray(fixes)).toBe(true);
     expect(fixes.length).toBeGreaterThan(0);
 
-    const envFix = fixes.find(f => f.ruleId === 'env-missing-example');
+    const envFix = fixes.find((f) => f.ruleId === 'env-missing-example');
     expect(envFix).toBeDefined();
     expect(envFix!.canAutoApply).toBe(true);
     expect(envFix!.filePath).toBe('.env.example');
@@ -192,9 +192,7 @@ describe('applyFix', () => {
 
   it('applies logging-migration-note fix by writing the file', async () => {
     const dir = makeTempDir();
-    const loggingFix = await generateLoggingNoteFix(dir, [
-      { filePath: 'src/app.ts', count: 12 },
-    ]);
+    const loggingFix = await generateLoggingNoteFix(dir, [{ filePath: 'src/app.ts', count: 12 }]);
     expect(loggingFix).not.toBeNull();
 
     applyFix(dir, loggingFix!);
@@ -280,9 +278,7 @@ describe('generateLoggingNoteFix', () => {
     const dir = makeTempDir();
     fs.writeFileSync(path.join(dir, 'LOGGING_MIGRATION_NOTE.md'), '# Existing note\n');
 
-    const fix = await generateLoggingNoteFix(dir, [
-      { filePath: 'src/app.ts', count: 10 },
-    ]);
+    const fix = await generateLoggingNoteFix(dir, [{ filePath: 'src/app.ts', count: 10 }]);
     expect(fix).toBeNull();
   });
 });

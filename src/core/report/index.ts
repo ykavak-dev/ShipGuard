@@ -96,12 +96,12 @@ function renderRiskMeter(score: number): string {
   const width = 30;
   const filled = Math.round((score / 100) * width);
   const empty = width - filled;
-  
+
   let color: (s: string) => string;
   if (score >= 80) color = c.success;
   else if (score >= 50) color = c.warning;
   else color = c.danger;
-  
+
   const bar = color('█'.repeat(filled)) + c.muted('░'.repeat(empty));
   return `[${bar}] ${c.bold(String(score))}/100`;
 }
@@ -125,7 +125,12 @@ function formatDuration(ms: number): string {
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return d.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -141,11 +146,11 @@ interface ScanCounts {
 export function printReport(counts: ScanCounts, score: number, metadata?: ScanMetadata): void {
   const total = counts.critical + counts.medium + counts.low;
   const risk = getRiskLabel(score);
-  
+
   // Header
   console.log(c.primary(ASCII_HEADER));
   console.log(divider());
-  
+
   // Execution Metrics
   if (metadata) {
     console.log(sectionTitle('EXECUTION METRICS'));
@@ -158,36 +163,46 @@ export function printReport(counts: ScanCounts, score: number, metadata?: ScanMe
     console.log(`  ${icon.info}  Started: ${formatTime(metadata.startedAt)}`);
     console.log(`  ${icon.check}  Completed: ${formatTime(metadata.completedAt)}`);
   }
-  
+
   // Security Score
   console.log(sectionTitle('SECURITY SCORE'));
   console.log(`  ${renderRiskMeter(score)}`);
   console.log(`  Status: ${chalk.bold(risk.color(risk.text))}`);
-  
+
   // Findings Summary
   console.log(sectionTitle('FINDINGS SUMMARY'));
-  
+
   if (total === 0) {
     console.log(`  ${badge.success}  ${c.success.bold('No security issues detected')}`);
     console.log(`  ${icon.shield}  Your codebase is secure`);
   } else {
     if (counts.critical > 0) {
-      console.log(`  ${badge.critical}  ${c.danger.bold(String(counts.critical).padStart(2))}  ${c.danger('Critical issues')}`);
+      console.log(
+        `  ${badge.critical}  ${c.danger.bold(String(counts.critical).padStart(2))}  ${c.danger('Critical issues')}`
+      );
     }
     if (counts.medium > 0) {
-      console.log(`  ${badge.medium}  ${c.warning.bold(String(counts.medium).padStart(2))}  ${c.warning('Medium severity')}`);
+      console.log(
+        `  ${badge.medium}  ${c.warning.bold(String(counts.medium).padStart(2))}  ${c.warning('Medium severity')}`
+      );
     }
     if (counts.low > 0) {
-      console.log(`  ${badge.low}  ${c.muted.bold(String(counts.low).padStart(2))}  ${c.muted('Low priority')}`);
+      console.log(
+        `  ${badge.low}  ${c.muted.bold(String(counts.low).padStart(2))}  ${c.muted('Low priority')}`
+      );
     }
-    console.log(`\n  ${icon.bullet}  Total: ${c.bold(String(total))} issue${total !== 1 ? 's' : ''}`);
+    console.log(
+      `\n  ${icon.bullet}  Total: ${c.bold(String(total))} issue${total !== 1 ? 's' : ''}`
+    );
   }
-  
+
   // Recommendations
   console.log(sectionTitle('RECOMMENDATIONS'));
-  
+
   if (counts.critical > 0) {
-    console.log(`  ${icon.fire}  ${c.danger.bold('URGENT:')} Fix critical issues before deployment`);
+    console.log(
+      `  ${icon.fire}  ${c.danger.bold('URGENT:')} Fix critical issues before deployment`
+    );
   }
   if (counts.medium > 0) {
     console.log(`  ${icon.warning}  Schedule fixes for medium severity issues`);
@@ -198,7 +213,7 @@ export function printReport(counts: ScanCounts, score: number, metadata?: ScanMe
   if (total === 0) {
     console.log(`  ${icon.check}  Maintain secure coding practices`);
   }
-  
+
   console.log('\n' + divider() + '\n');
 }
 
@@ -213,7 +228,7 @@ export function printAIReview(
 ): void {
   console.log(sectionTitle('AI SECURITY ANALYSIS'));
   console.log(divider());
-  
+
   // Top Risks
   console.log(sectionTitle('PRIORITY RISKS'));
   if (prioritizedRisks.length === 0) {
@@ -224,7 +239,7 @@ export function printAIReview(
       console.log(`  ${bullet} ${c.danger.bold(`${i + 1}.`)} ${c.white(risk)}`);
     });
   }
-  
+
   // Quick Fixes
   console.log(sectionTitle('QUICK FIXES (< 30 MIN)'));
   if (quickFixes.length === 0) {
@@ -234,21 +249,24 @@ export function printAIReview(
       console.log(`  ${icon.bullet} ${c.primary.bold(`${i + 1}.`)} ${c.white(fix)}`);
     });
   }
-  
+
   // Ship Readiness
   console.log(sectionTitle('SHIP READINESS'));
   const readinessLower = shipReadiness.toLowerCase();
   let iconStr: string;
   let colorFn: (s: string) => string;
-  
+
   if (readinessLower.includes('ready') || readinessLower.includes('safe')) {
-    iconStr = '🚀'; colorFn = c.success;
+    iconStr = '🚀';
+    colorFn = c.success;
   } else if (readinessLower.includes('caution') || readinessLower.includes('moderate')) {
-    iconStr = '⏸'; colorFn = c.warning;
+    iconStr = '⏸';
+    colorFn = c.warning;
   } else {
-    iconStr = '🚫'; colorFn = c.danger;
+    iconStr = '🚫';
+    colorFn = c.danger;
   }
-  
+
   console.log(`  ${iconStr}  ${c.bold(colorFn(shipReadiness))}`);
   console.log('\n' + divider() + '\n');
 }
@@ -263,10 +281,10 @@ function getSeverityBadge(severity: 'critical' | 'medium' | 'low'): string {
 
 export function printFindingDetail(finding: ScannerFinding, index: number): void {
   const b = getSeverityBadge(finding.severity);
-  const loc = finding.line 
+  const loc = finding.line
     ? c.muted(`${finding.filePath}:${finding.line}`)
     : c.muted(finding.filePath);
-  
+
   console.log(`\n  ${c.muted(`#${String(index + 1).padStart(3)}`)} ${b}`);
   console.log(`  ${c.white(finding.message)}`);
   console.log(`  ${loc} ${c.muted(`[${finding.ruleId}]`)}`);

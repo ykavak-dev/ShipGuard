@@ -21,7 +21,7 @@ export function updateScan(
   cache: ScanCache,
   result: ScanResult,
   score: number,
-  scanPath: string,
+  scanPath: string
 ): void {
   const timestamp = new Date().toISOString();
 

@@ -11,7 +11,7 @@ export function registerRulesResource(server: McpServer): void {
     },
     async (uri) => {
       const rules = await loadRules();
-      const response = rules.map(r => ({
+      const response = rules.map((r) => ({
         id: r.id,
         name: r.name,
         description: r.description,
@@ -21,11 +21,13 @@ export function registerRulesResource(server: McpServer): void {
       }));
 
       return {
-        contents: [{
-          uri: uri.href,
-          mimeType: 'application/json',
-          text: JSON.stringify(response, null, 2),
-        }],
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: 'application/json',
+            text: JSON.stringify(response, null, 2),
+          },
+        ],
       };
     }
   );

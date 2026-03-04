@@ -30,7 +30,7 @@ function makeRule(overrides: Partial<Rule> = {}): Rule {
 function makeScanResult(
   critical: Finding[] = [],
   medium: Finding[] = [],
-  low: Finding[] = [],
+  low: Finding[] = []
 ): ScanResult {
   return { critical, medium, low };
 }
@@ -43,8 +43,16 @@ describe('generateSarif', () => {
   });
 
   it('all findings appear as results', () => {
-    const criticalFinding = makeFinding({ severity: 'critical', ruleId: 'rule-a', message: 'Critical issue' });
-    const mediumFinding = makeFinding({ severity: 'medium', ruleId: 'rule-b', message: 'Medium issue' });
+    const criticalFinding = makeFinding({
+      severity: 'critical',
+      ruleId: 'rule-a',
+      message: 'Critical issue',
+    });
+    const mediumFinding = makeFinding({
+      severity: 'medium',
+      ruleId: 'rule-b',
+      message: 'Medium issue',
+    });
     const lowFinding = makeFinding({ severity: 'low', ruleId: 'rule-c', message: 'Low issue' });
 
     const rules = [
@@ -55,13 +63,13 @@ describe('generateSarif', () => {
 
     const sarif = generateSarif(
       makeScanResult([criticalFinding], [mediumFinding], [lowFinding]),
-      rules,
+      rules
     ) as { runs: Array<{ results: Array<{ ruleId: string }> }> };
 
     const results = sarif.runs[0].results;
     expect(results).toHaveLength(3);
 
-    const ruleIds = results.map(r => r.ruleId);
+    const ruleIds = results.map((r) => r.ruleId);
     expect(ruleIds).toContain('rule-a');
     expect(ruleIds).toContain('rule-b');
     expect(ruleIds).toContain('rule-c');
@@ -80,11 +88,11 @@ describe('generateSarif', () => {
 
     const sarif = generateSarif(
       makeScanResult([criticalFinding], [mediumFinding], [lowFinding]),
-      rules,
+      rules
     ) as { runs: Array<{ results: Array<{ ruleId: string; level: string }> }> };
 
     const results = sarif.runs[0].results;
-    const byRuleId = Object.fromEntries(results.map(r => [r.ruleId, r.level]));
+    const byRuleId = Object.fromEntries(results.map((r) => [r.ruleId, r.level]));
 
     expect(byRuleId['r1']).toBe('error');
     expect(byRuleId['r2']).toBe('warning');
@@ -101,13 +109,15 @@ describe('generateSarif', () => {
       makeRule({ id: 'beta', severity: 'medium' }),
     ];
 
-    const sarif = generateSarif(
-      makeScanResult([findings[0]], [findings[1]]),
-      rules,
-    ) as { runs: Array<{ tool: { driver: { rules: Array<{ id: string }> } }; results: Array<{ ruleId: string }> }> };
+    const sarif = generateSarif(makeScanResult([findings[0]], [findings[1]]), rules) as {
+      runs: Array<{
+        tool: { driver: { rules: Array<{ id: string }> } };
+        results: Array<{ ruleId: string }>;
+      }>;
+    };
 
-    const driverRuleIds = sarif.runs[0].tool.driver.rules.map(r => r.id);
-    const resultRuleIds = sarif.runs[0].results.map(r => r.ruleId);
+    const driverRuleIds = sarif.runs[0].tool.driver.rules.map((r) => r.id);
+    const resultRuleIds = sarif.runs[0].results.map((r) => r.ruleId);
 
     for (const id of resultRuleIds) {
       expect(driverRuleIds).toContain(id);

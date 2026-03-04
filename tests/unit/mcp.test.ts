@@ -34,12 +34,7 @@ function freshCache(): ScanCache {
   };
 }
 
-function makeScanResult(
-  critical = 0,
-  medium = 0,
-  low = 0,
-  filesScanned = 5,
-): ScanResult {
+function makeScanResult(critical = 0, medium = 0, low = 0, filesScanned = 5): ScanResult {
   const mkFinding = (severity: 'critical' | 'medium' | 'low', n: number) =>
     Array.from({ length: n }, (_, i) => ({
       ruleId: `rule-${severity}-${i}`,
@@ -68,7 +63,7 @@ function makeScanResult(
 function freshServer(): McpServer {
   return new McpServer(
     { name: 'shipguard-test', version: '2.0.0' },
-    { capabilities: { logging: {} } },
+    { capabilities: { logging: {} } }
   );
 }
 
@@ -172,12 +167,12 @@ describe('updateScan', () => {
   it('each call produces a distinct timestamp', async () => {
     updateScan(cache, makeScanResult(), 90, '/a');
     // Small delay to ensure different timestamps
-    await new Promise(r => setTimeout(r, 5));
+    await new Promise((r) => setTimeout(r, 5));
     updateScan(cache, makeScanResult(), 80, '/b');
 
     const [recent, older] = cache.history;
     expect(new Date(recent.timestamp).getTime()).toBeGreaterThanOrEqual(
-      new Date(older.timestamp).getTime(),
+      new Date(older.timestamp).getTime()
     );
   });
 

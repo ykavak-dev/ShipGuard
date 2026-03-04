@@ -78,10 +78,7 @@ ${JSON.stringify(scanResults, null, 2)}`;
     };
   }
 
-  async generateFix(
-    finding: Finding,
-    fileContent: string
-  ): Promise<AIFixSuggestion> {
+  async generateFix(finding: Finding, fileContent: string): Promise<AIFixSuggestion> {
     const userPrompt = `Generate a fix for this security finding.
 
 Finding:
@@ -108,10 +105,7 @@ ${fileContent}
     };
   }
 
-  async streamResponse(
-    prompt: string,
-    onChunk: (chunk: string) => void
-  ): Promise<string> {
+  async streamResponse(prompt: string, onChunk: (chunk: string) => void): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -187,10 +181,8 @@ ${fileContent}
   }
 
   private parseJSON<T>(content: string): T {
-    const jsonMatch =
-      content.match(/```json\n?([\s\S]*?)\n?```/) ||
-      content.match(/```\n?([\s\S]*?)\n?```/) ||
-      [null, content];
+    const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) ||
+      content.match(/```\n?([\s\S]*?)\n?```/) || [null, content];
 
     const jsonContent = jsonMatch[1]?.trim() || content.trim();
 

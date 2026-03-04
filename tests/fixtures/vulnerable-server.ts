@@ -1,9 +1,9 @@
 // Test fixture — deliberately vulnerable code for rule testing
 // DO NOT import or execute this file
 
-import express from "express";
-import cors from "cors";
-import crypto from "crypto";
+import express from 'express';
+import cors from 'cors';
+import crypto from 'crypto';
 
 const app = express();
 

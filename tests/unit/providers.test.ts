@@ -3,11 +3,7 @@ import { createProvider } from '../../src/ai/providerFactory';
 import { MockProvider } from '../helpers/mockProvider';
 
 describe('createProvider', () => {
-  const envVarsToSave = [
-    'ANTHROPIC_API_KEY',
-    'OPENAI_API_KEY',
-    'SHIPGUARD_API_KEY',
-  ];
+  const envVarsToSave = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'SHIPGUARD_API_KEY'];
   const savedEnv: Record<string, string | undefined> = {};
 
   // Save and clear env vars before tests that need clean state

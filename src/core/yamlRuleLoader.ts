@@ -86,7 +86,9 @@ function compileYamlRule(yamlRule: YamlRule): Rule | null {
         message: p.message,
       });
     } catch (err) {
-      console.error(`[shipguard] Invalid regex in rule "${yamlRule.id}": ${err instanceof Error ? err.message : String(err)}`);
+      console.error(
+        `[shipguard] Invalid regex in rule "${yamlRule.id}": ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   }
 
@@ -149,7 +151,9 @@ function loadYamlFile(filePath: string): Rule[] {
   try {
     parsed = yaml.load(content);
   } catch (err) {
-    console.error(`[shipguard] Failed to parse YAML file ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(
+      `[shipguard] Failed to parse YAML file ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+    );
     return [];
   }
 
@@ -160,7 +164,9 @@ function loadYamlFile(filePath: string): Rule[] {
 
   for (const yamlRule of file.rules) {
     if (!isValidYamlRule(yamlRule)) {
-      console.error(`[shipguard] Skipping invalid YAML rule in ${filePath}: ${JSON.stringify((yamlRule as Record<string, unknown>)?.id ?? 'unknown')}`);
+      console.error(
+        `[shipguard] Skipping invalid YAML rule in ${filePath}: ${JSON.stringify((yamlRule as Record<string, unknown>)?.id ?? 'unknown')}`
+      );
       continue;
     }
 
@@ -189,7 +195,9 @@ export async function loadYamlRules(projectRoot?: string): Promise<Rule[]> {
   const rulesDir = process.env.SHIPGUARD_RULES_DIR;
   if (rulesDir) {
     try {
-      const files = fs.readdirSync(rulesDir).filter(f => f.endsWith('.yml') || f.endsWith('.yaml'));
+      const files = fs
+        .readdirSync(rulesDir)
+        .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
       for (const file of files) {
         rules.push(...loadYamlFile(path.join(rulesDir, file)));
       }

@@ -5,8 +5,18 @@ const PSEUDO_RANDOM_PATTERN = /crypto\.pseudoRandomBytes/;
 const MATH_RANDOM_PATTERN = /Math\.random\s*\(\)/;
 
 const SECURITY_CONTEXT_KEYWORDS = [
-  'token', 'secret', 'password', 'key', 'salt', 'hash', 'nonce',
-  'session', 'csrf', 'auth', 'credential', 'encrypt',
+  'token',
+  'secret',
+  'password',
+  'key',
+  'salt',
+  'hash',
+  'nonce',
+  'session',
+  'csrf',
+  'auth',
+  'credential',
+  'encrypt',
 ];
 
 const rule: Rule = {
@@ -53,14 +63,17 @@ const rule: Rule = {
           .join(' ')
           .toLowerCase();
 
-        const inSecurityContext = SECURITY_CONTEXT_KEYWORDS.some(kw => surroundingLines.includes(kw));
+        const inSecurityContext = SECURITY_CONTEXT_KEYWORDS.some((kw) =>
+          surroundingLines.includes(kw)
+        );
 
         if (inSecurityContext) {
           findings.push({
             filePath: context.filePath,
             line: i + 1,
             severity: 'medium',
-            message: 'Math.random() is not cryptographically secure. Use crypto.randomBytes() or crypto.randomUUID() for security-sensitive values.',
+            message:
+              'Math.random() is not cryptographically secure. Use crypto.randomBytes() or crypto.randomUUID() for security-sensitive values.',
             ruleId: 'weak-crypto',
             category: 'cryptography',
           });

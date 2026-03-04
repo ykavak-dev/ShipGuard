@@ -29,10 +29,10 @@ const rule: Rule = {
 
     const deps = {
       ...(typeof parsed.dependencies === 'object' && parsed.dependencies !== null
-        ? parsed.dependencies as Record<string, string>
+        ? (parsed.dependencies as Record<string, string>)
         : {}),
       ...(typeof parsed.devDependencies === 'object' && parsed.devDependencies !== null
-        ? parsed.devDependencies as Record<string, string>
+        ? (parsed.devDependencies as Record<string, string>)
         : {}),
     };
 

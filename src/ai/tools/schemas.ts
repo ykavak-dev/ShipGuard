@@ -45,7 +45,8 @@ export interface SuggestRulesResult {
 
 export const ANALYZE_FINDING_TOOL: Anthropic.Tool = {
   name: 'analyze_finding',
-  description: 'Provide a detailed security analysis of a single finding including CVSS score, exploitability assessment, and false positive risk evaluation',
+  description:
+    'Provide a detailed security analysis of a single finding including CVSS score, exploitability assessment, and false positive risk evaluation',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -63,7 +64,8 @@ export const ANALYZE_FINDING_TOOL: Anthropic.Tool = {
       },
       exploitability: {
         type: 'string',
-        description: 'How easily this finding could be exploited (e.g. "Trivial - secret exposed in public repo")',
+        description:
+          'How easily this finding could be exploited (e.g. "Trivial - secret exposed in public repo")',
       },
       remediation: {
         type: 'string',
@@ -120,7 +122,8 @@ export const GENERATE_FIX_TOOL: Anthropic.Tool = {
 
 export const PRIORITIZE_RISKS_TOOL: Anthropic.Tool = {
   name: 'prioritize_risks',
-  description: 'Prioritize all findings by exploitability and business impact, provide overall risk score and ship readiness assessment',
+  description:
+    'Prioritize all findings by exploitability and business impact, provide overall risk score and ship readiness assessment',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -169,7 +172,8 @@ export const PRIORITIZE_RISKS_TOOL: Anthropic.Tool = {
 
 export const SUGGEST_RULES_TOOL: Anthropic.Tool = {
   name: 'suggest_rules',
-  description: 'Suggest new scanning rules based on findings and coverage gaps in the current rule set',
+  description:
+    'Suggest new scanning rules based on findings and coverage gaps in the current rule set',
   input_schema: {
     type: 'object' as const,
     properties: {
